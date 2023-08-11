@@ -4,14 +4,35 @@ import toml
 import subprocess
 import argparse
 import shutil
+import json
+import socket
+from typing import Tuple
 
-# modified from colab py
 
+def get_available_port(port: int, max_retries=100) -> int:
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  # check with 10ms timeout if port is available
+  sock.settimeout(0.01)
+  tried_ports = []
+  while port < 65535:
+    try:
+      sock.bind(("localhost", port))
+      sock.close()
+      return port
+    except socket.error:
+      tried_ports.append(port)
+      port += 1
+    if len(tried_ports) > max_retries:
+      break
+  raise Exception("No available ports found!")
 
 def validate_dataset():
   global lr_warmup_steps, lr_warmup_ratio, caption_extension, keep_tokens, keep_tokens_weight, weighted_captions, adjust_tags
   supported_types = (".png", ".jpg", ".jpeg")
+
+  print("\n💿 Checking dataset...")
   if not project_name.strip() or any(c in project_name for c in " .()\"'\\/"):
+    print("💥 Error: Please choose a valid project name.")
     return
 
   if custom_dataset:
@@ -102,13 +123,28 @@ def adjust_weighted_tags(folders, keep_tokens: int, keep_tokens_weight: float, w
         f.write(content)
 
 def create_config():
-  global dataset_config_file, config_file, model_file
+  global dataset_config_file, config_file, model_file, port_num, port_fallback
   from accelerate.utils import write_basic_config
   os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
   os.environ["BITSANDBYTES_NOWELCOME"] = "1"
   os.environ["SAFETENSORS_FAST_GPU"] = "1"
-  if not os.path.exists(accelerate_config_file):
-    write_basic_config(save_location=accelerate_config_file)
+  if os.path.exists(accelerate_config_file):
+    # remove old config file
+    os.remove(accelerate_config_file)
+  write_basic_config(save_location=accelerate_config_file)
+  # load config file and change settings
+  if port_fallback:
+    # search available port
+    new_port_num = get_available_port(port_num)
+    if new_port_num != port_num:
+      print(f"\n⚠️ Port {port_num} is not available. Using port {new_port_num} instead.")
+  else:
+    new_port_num = port_num
+  with open(accelerate_config_file, 'r') as configfile:
+    config_json = json.load(configfile)
+    config_json["main_process_port"] = new_port_num
+  with open(accelerate_config_file, 'w') as configfile:
+    json.dump(config_json, configfile, indent=2)
   if resume:
     resume_points = [f.path for f in os.scandir(output_folder) if f.is_dir()]
     resume_points.sort()
@@ -282,6 +318,10 @@ if __name__ == "__main__":
   parser.add_argument('--target_path', type=str, default='/data3/space/research-sdwebui/stable-diffusion-webui/models/Lora',
                       help='Target path for the project (default: /data3/space/research-sdwebui/stable-diffusion-webui/models/Lora)')
   parser.add_argument('--temp_dir', type=str, default='', help='Temporary directory for the project (default: "")')
+  # add port to use for accelerate
+  parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
+  # should we use port fallback
+  parser.add_argument('--port_fallback', type=bool, default=False, help='Use port fallback (default: False)')
   args = parser.parse_args()
 
   os.environ["CUDA_VISIBLE_DEVICES"] = str(args.cuda_device)
@@ -302,6 +342,8 @@ if __name__ == "__main__":
   root_dir = args.temp_dir if args.temp_dir != '' else "./Loras"
   os.chdir(curdir) # change directory to current directory
   repo_dir = args.repo_dir
+  port_num = args.port
+  port_fallback = args.port_fallback
   images_folder = f"/data3/space/kohya_ss/colab_ipynb/Loras/{project_name_base}/dataset/" if args.images_folder == '' else args.images_folder
   project_name = f"{project_name_base}_autotrain" #@param {type:"string"}
   skip_model_test = True

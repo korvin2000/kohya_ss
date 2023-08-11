@@ -99,7 +99,7 @@ if __name__ == '__main__':
                                 images_folder=args.images_folder if args.images_folder else "",
                                 model_file=args.model_file if args.model_file else "",
                                 cuda_device=tuning_config['CUDA_VISIBLE_DEVICES'] if args.cuda_device == '' else args.cuda_device,
-                                port=tuning_config['PORT'] if args.port == '' else args.port)
+                                port=tuning_config['port'] if args.port == '' else args.port)
         #print(config)
         print(f"running _{train_id}")
         command_inputs = ["python", "trainer.py"]

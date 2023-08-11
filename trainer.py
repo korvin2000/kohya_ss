@@ -10,21 +10,21 @@ from typing import Tuple
 
 
 def get_available_port(port: int, max_retries=100) -> int:
-  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  # check with 10ms timeout if port is available
-  sock.settimeout(0.01)
   tried_ports = []
   while port < 65535:
     try:
-      sock.bind(("localhost", port))
+      sock = socket.socket()
+      sock.bind(("127.0.0.1", port))
       sock.close()
       return port
-    except socket.error:
+    except (OSError, socket.error):
+      print(f"Port {port} is already in use.")
       tried_ports.append(port)
       port += 1
     if len(tried_ports) > max_retries:
       break
   raise Exception("No available ports found!")
+
 
 def validate_dataset():
   global lr_warmup_steps, lr_warmup_ratio, caption_extension, keep_tokens, keep_tokens_weight, weighted_captions, adjust_tags

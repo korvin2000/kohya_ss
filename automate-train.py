@@ -1,4 +1,3 @@
-
 import os
 import subprocess
 from itertools import product
@@ -9,7 +8,7 @@ tuning_config = {
     'unet_lr_list' : [1e-5, 1e-4, 2e-4, 3e-4],
     'text_encoder_lr_list' : [1e-5, 2e-5, 3e-5, 4e-5],
     'network_alpha_list' : [2,4,8],
-    'CUDA_VISIBLE_DEVICES' : '0'
+    'CUDA_VISIBLE_DEVICES' : '5'
 }
 
 def generate_config(**modified_kwargs):
@@ -25,7 +24,7 @@ def generate_config(**modified_kwargs):
 def load_default_config(config_path:str):
     default_configs = {
         'project_name_base' : "BASE", # this will be used for creating folders with configs
-        'model_file' :'/model.safetensors',
+        'model_file' :'model.safetensors',
         'optimizer' : 'AdamW8bit',
         'network_dim' : 16,
         'network_alpha' : 8,
@@ -36,11 +35,12 @@ def load_default_config(config_path:str):
         'train_batch_size' : 4,
         'unet_lr' : 1e-4,
         'text_encoder_lr' : 2e-5,
-        'target_path' : '',
-        'temp_dir' : 'Loras/tmp',
+        'target_path' : '/train',
+        'temp_dir' : '/tmp',
         'images_folder' : '',
         'cuda_device' : '0',
-        'repo_dir' : 'kohya_ss'
+        'repo_dir' : 'kohya_ss',
+        'port' : 20060
     }
     try:
         with open(config_path, 'r') as f:
@@ -55,6 +55,7 @@ def load_tuning_config(config_path:str):
         'text_encoder_lr_list' : [1e-5, 2e-5, 3e-5, 4e-5],
         'network_alpha_list' : [2,4,8],
         'CUDA_VISIBLE_DEVICES' : '0',
+        'PORT' : 20060
     }
     try:
         with open(config_path, 'r') as f:
@@ -78,8 +79,11 @@ if __name__ == '__main__':
     # images_folder
     parser.add_argument('--images_folder', type=str, default='')
     parser.add_argument('--model_file', type=str, default='')
-    # model_file
+    parser.add_argument('--port', type=str, default='')
+    parser.add_argument('--cuda_device', type=str, default='')
+
     args = parser.parse_args()
+    # model_file
     project_name_base = args.project_name_base
     train_id = args.train_id_start
     default_configs = load_default_config(args.default_config_path)
@@ -94,7 +98,8 @@ if __name__ == '__main__':
                                 text_encoder_lr=text_encoder_lr, network_alpha=network_alpha,
                                 images_folder=args.images_folder if args.images_folder else "",
                                 model_file=args.model_file if args.model_file else "",
-                                cuda_device=tuning_config['CUDA_VISIBLE_DEVICES'])
+                                cuda_device=tuning_config['CUDA_VISIBLE_DEVICES'] if args.cuda_device == '' else args.cuda_device,
+                                port=tuning_config['PORT'] if args.port == '' else args.port)
         #print(config)
         print(f"running _{train_id}")
         command_inputs = ["python", "trainer.py"]

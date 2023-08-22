@@ -389,15 +389,17 @@ if __name__ == "__main__":
   if args.custom_dataset and os.path.exists(args.custom_dataset):
     print("Custom dataset will be loaded from " + args.custom_dataset + " , images_folder will be ignored.")
     images_folder = ''
+    custom_dataset = None
+    override_dataset_config_file = args.custom_dataset 
   elif args.custom_dataset and not os.path.exists(args.custom_dataset):
     if args.custom_dataset.lower() == 'none' or args.custom_dataset.lower() == 'null' or args.custom_dataset.lower() == 'false':
       print("Custom dataset will not be loaded, images_folder will be used.")
+      custom_dataset = None
+      override_dataset_config_file = ""
     else:
       raise Exception("Custom dataset not found at " + args.custom_dataset)
   project_name = f"{project_name_base}_autotrain" #@param {type:"string"}
   skip_model_test = True
-  custom_dataset = None
-  override_dataset_config_file = args.custom_dataset 
   assert not override_dataset_config_file or os.path.exists(override_dataset_config_file), "Custom dataset config file not found at "+override_dataset_config_file
   assert args.lr_scheduler in ['constant', 'cosine', 'cosine_with_restarts', 'constant_with_warmup', 'linear', 'polynomial'], "LR scheduler must be 'constant', 'cosine', 'cosine_with_restarts', 'constant_with_warmup', 'linear', or 'polynomial', but given "+args.lr_scheduler
   override_config_file = None

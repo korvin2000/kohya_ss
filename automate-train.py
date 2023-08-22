@@ -27,7 +27,33 @@ def load_default_config(config_path:str):
     Loads default configs from json file, and returns a dict of configs
     """
     default_configs = {
- 
+        'project_name_base' : "BASE", 
+        'model_file' :'model.safetensors',
+        'optimizer' : 'AdamW8bit',
+        'network_dim' : 16,
+        'network_alpha' : 8,
+        'conv_dim' : 8,
+        'conv_alpha' : 1,
+        'num_repeats' : 10,
+        'epoch_num' : 10,
+        'train_batch_size' : 4,
+        'unet_lr' : 1e-4,
+        'text_encoder_lr' : 2e-5,
+        'target_path' : '/train',
+        'temp_dir' : '/tmp',
+        'images_folder' : '',
+        'cuda_device' : '0',
+        'repo_dir' : 'kohya_ss',
+        'port' : 20060,
+        'sample_opt' : 'epoch',
+        'sample_num' : 1,
+        'seed' : 42,
+        'prompt_path' : '/prompt/prompt.txt',
+        'keep_tokens' : 0,
+        'resolution' : 768,
+        'lr_scheduler' : 'cosine_with_restarts',
+        'lora_type' : 'LoRA',
+        'custom_dataset' : None
     }
     try:
         with open(config_path, 'r') as f:

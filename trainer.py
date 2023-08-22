@@ -27,6 +27,9 @@ def get_available_port(port: int, max_retries=100) -> int:
 
 
 def validate_dataset():
+  if override_dataset_config_file:
+    print("Using custom dataset config file ", override_dataset_config_file)
+    custom_dataset = override_dataset_config_file
   global lr_warmup_steps, lr_warmup_ratio, caption_extension, keep_tokens, keep_tokens_weight, weighted_captions, adjust_tags
   supported_types = (".png", ".jpg", ".jpeg")
 
@@ -186,7 +189,7 @@ def create_config():
         "clip_skip": 2,
         "min_snr_gamma": min_snr_gamma_value,
         "weighted_captions": weighted_captions,
-        "seed": 42,
+        "seed": training_seed,
         "max_token_length": 225,
         "xformers": True,
         "lowram": False,
@@ -200,7 +203,10 @@ def create_config():
         "log_prefix": project_name,
         "save_state": save_state,
         "save_last_n_epochs_state": 1 if save_state else None,
-        "resume": last_resume_point
+        "resume": last_resume_point,
+        "sample_every_n_steps": sample_num if sample_num and sample_opt.lowercase() == 'steps' else None,
+        "sample_every_n_epochs": sample_num if sample_num and sample_opt.lowercase() == 'epoch' else None,
+        "sample_prompts": prompt_path if prompt_path and sample_opt.lowercase() != 'None' else None
       },
       "model_arguments": {
         "pretrained_model_name_or_path": model_file,
@@ -216,6 +222,7 @@ def create_config():
       "dataset_arguments": {
         "cache_latents": True,
       },
+      
     }
 
     for key in config_dict:
@@ -299,7 +306,7 @@ if __name__ == "__main__":
                       help='Alpha value for the convolutional layers (default: 1)')
   parser.add_argument('--num_repeats', type=int, default=10,
                       help='Number of repeats (default: 10)')
-  parser.add_argument('--epoch_num', type=int, default=40,
+  parser.add_argument('--epoch_num', type=int, default=10,
                       help='Number of epochs (default: 40)')
   parser.add_argument('--train_batch_size', type=int, default=4,
                       help='Batch size for training (default: 4)')
@@ -307,6 +314,8 @@ if __name__ == "__main__":
                       help='Learning rate for the UNet (default: 1e-4)')
   parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
                       help='Learning rate for the text encoder (default: 2e-5)')
+  parser.add_argument('--custom_dataset', type=str, default=None,
+                      help='Custom dataset config path. (default: None)')
   # add image_folder
   parser.add_argument('--images_folder', type=str, default='')
   #add repo_dir
@@ -321,9 +330,29 @@ if __name__ == "__main__":
   # add port to use for accelerate
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
   # should we use port fallback
-  parser.add_argument('--port_fallback', type=bool, default=False, help='Use port fallback (default: False)')
-  args = parser.parse_args()
+  parser.add_argument('--port_fallback', type=bool, default=True, help='Use port fallback (default: False)')
+  # prompt
+  parser.add_argument('--prompt_path', type=str, default='', help='Prompt file for the project (default: ""), ex : `character is haibara ai,1girl --s 16 --w 512 --h 768 --d 42`')
+  # sample_opt ('epoch', 'step')
+  parser.add_argument('--sample_opt', type=str, default='epoch', help='Sample option for the project (default: epoch, can be None)')
+  # sample_num
+  parser.add_argument('--sample_num', type=int, default=1, help='Sample number for the project (default: 1)')
+  # seed
+  parser.add_argument('--seed', type=int, default=42, help='Seed for the project (default: 42)')
+  # keep tokens
+  parser.add_argument('--keep_tokens', type=int, default=1, help='Keep tokens for the project (default: 1)')
+  # resolution
+  parser.add_argument('--resolution', type=int, default=512, help='Resolution for the project (default: 512)')
+  # lr_scheduler
+  parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
+  # lora type
+  parser.add_argument('--lora_type', type=str, default='LoRA', help='LoRA type for the project (default: LoRA)')
 
+
+  args = parser.parse_args()
+  # TODO : separate validation
+  assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
+  assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
   os.environ["CUDA_VISIBLE_DEVICES"] = str(args.cuda_device)
   project_name_base = args.project_name_base
   model_file = args.model_file
@@ -331,9 +360,14 @@ if __name__ == "__main__":
   network_dim = args.network_dim
   network_alpha = args.network_alpha
   conv_dim = args.conv_dim
+  training_seed = args.seed
   conv_alpha = args.conv_alpha
   num_repeats = args.num_repeats
   epoch_num = args.epoch_num
+  sample_num = args.sample_num
+  sample_opt = args.sample_opt
+  prompt_path = args.prompt_path
+  assert sample_opt == 'None' or not prompt_path or os.path.exists(prompt_path), "Prompt file not found at "+prompt_path
   train_batch_size = args.train_batch_size
   unet_lr = args.unet_lr
   text_encoder_lr = args.text_encoder_lr
@@ -344,25 +378,28 @@ if __name__ == "__main__":
   repo_dir = args.repo_dir
   port_num = args.port
   port_fallback = args.port_fallback
+  if args.custom_dataset:
+    print("Custom dataset will be loaded from " + args.custom_dataset + " , images_folder will be ignored.")
   images_folder = f"/data3/space/kohya_ss/colab_ipynb/Loras/{project_name_base}/dataset/" if args.images_folder == '' else args.images_folder
   project_name = f"{project_name_base}_autotrain" #@param {type:"string"}
   skip_model_test = True
   custom_dataset = None
-  override_dataset_config_file = None
+  override_dataset_config_file = args.custom_dataset 
+  assert not override_dataset_config_file or os.path.exists(override_dataset_config_file), "Custom dataset config file not found at "+override_dataset_config_file
+  assert args.lr_scheduler in ['constant', 'cosine', 'cosine_with_restarts', 'constant_with_warmup', 'linear', 'polynomial'], "LR scheduler must be 'constant', 'cosine', 'cosine_with_restarts', 'constant_with_warmup', 'linear', or 'polynomial', but given "+args.lr_scheduler
   override_config_file = None
   optimizer_args = None
   continue_from_lora = ""
   weighted_captions = True ## True로 하면 Weighted Caption 적용
   adjust_tags = True
-  keep_tokens_weight = 1.0
+  keep_tokens_weight = 1.0 
   custom_model_is_based_on_sd2 = False #@param {type:"boolean"}
-  resolution = 512 #@param {type:"slider", min:512, max:1024, step:128}
+  resolution = args.resolution
   flip_aug = False #@param {type:"boolean"}
   caption_extension = ".txt" #param {type:"string"}
   shuffle_tags = True #@param {type:"boolean"}
   shuffle_caption = shuffle_tags
-  activation_tags = "1" #@param [0,1,2,3]
-  keep_tokens = int(activation_tags)
+  keep_tokens = args.keep_tokens #param {type:"slider", min:0, max:10, step:1}
   preferred_unit = "Epochs" #@param ["Epochs", "Steps"]
   max_train_epochs = epoch_num if preferred_unit == "Epochs" else None
   max_train_steps = epoch_num if preferred_unit == "Steps" else None
@@ -373,7 +410,7 @@ if __name__ == "__main__":
   if not keep_only_last_n_epochs:
     keep_only_last_n_epochs = max_train_epochs
 
-  lr_scheduler = "cosine_with_restarts" #@param ["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"]
+  lr_scheduler = args.lr_scheduler #@param ["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"]
   lr_scheduler_number = 3 #@param {type:"number"}
   lr_scheduler_num_cycles = lr_scheduler_number if lr_scheduler == "cosine_with_restarts" else 0
   lr_scheduler_power = lr_scheduler_number if lr_scheduler == "polynomial" else 0
@@ -381,7 +418,7 @@ if __name__ == "__main__":
   lr_warmup_steps = 0
   min_snr_gamma = True #@param {type:"boolean"}
   min_snr_gamma_value = 5.0 if min_snr_gamma else None
-  lora_type = "LoRA" #@param ["LoRA", "LoCon Lycoris", "LoHa Lycoris"]
+  lora_type = args.lora_type #@param ["LoRA", "LoCon Lycoris", "LoHa Lycoris"]
   conv_compression = False #@param {type:"boolean"}
   network_module = "lycoris.kohya" if "Lycoris" in lora_type else "networks.lora"
   network_args = None if lora_type == "LoRA" else [

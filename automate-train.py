@@ -5,13 +5,13 @@ import argparse
 import json
 
 tuning_config = {
-    'unet_lr_list' : [1e-5, 1e-4, 2e-4, 3e-4],
-    'text_encoder_lr_list' : [1e-5, 2e-5, 3e-5, 4e-5],
-    'network_alpha_list' : [2,4,8],
-    'CUDA_VISIBLE_DEVICES' : '5'
 }
 
 def generate_config(**modified_kwargs):
+    """
+    modified_kwargs: dict of key, value pairs to be modified from default_configs
+    If value is empty string or None, it will not be modified.
+    """
     copied_config = default_configs.copy()
     for key, value in modified_kwargs.items():
         if key not in default_configs:
@@ -22,46 +22,55 @@ def generate_config(**modified_kwargs):
     return copied_config
 
 def load_default_config(config_path:str):
+    """
+    config_path: path to json file containing default configs
+    Loads default configs from json file, and returns a dict of configs
+    """
     default_configs = {
-        'project_name_base' : "BASE", # this will be used for creating folders with configs
-        'model_file' :'model.safetensors',
-        'optimizer' : 'AdamW8bit',
-        'network_dim' : 16,
-        'network_alpha' : 8,
-        'conv_dim' : 8,
-        'conv_alpha' : 1,
-        'num_repeats' : 10,
-        'epoch_num' : 10,
-        'train_batch_size' : 4,
-        'unet_lr' : 1e-4,
-        'text_encoder_lr' : 2e-5,
-        'target_path' : '/train',
-        'temp_dir' : '/tmp',
-        'images_folder' : '',
-        'cuda_device' : '0',
-        'repo_dir' : 'kohya_ss',
-        'port' : 20060
+ 
     }
     try:
         with open(config_path, 'r') as f:
-            default_configs = json.load(f)
+            default_configs_loaded = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         print("Couldn't load config file, using default configs")
+    for keys in default_configs:
+        if keys not in default_configs_loaded:
+            default_configs_loaded[keys] = default_configs[keys]
+    default_configs = default_configs_loaded
     return default_configs
 
 def load_tuning_config(config_path:str):
+    """
+    config_path: path to json file containing default configs
+    Loads default configs from json file, and returns a dict of configs
+    """
     tuning_config = {
         'unet_lr_list' : [1e-5, 1e-4, 2e-4, 3e-4],
         'text_encoder_lr_list' : [1e-5, 2e-5, 3e-5, 4e-5],
         'network_alpha_list' : [2,4,8],
+        'network_dim_list' : [16],
         'CUDA_VISIBLE_DEVICES' : '0',
-        'PORT' : 20060
+        'PORT' : 20060,
+        'sample_opt' : 'epoch',
+        'sample_num' : 1,
+        'seed_list' : [42],
+        'prompt_path' : '/prompt/prompt.txt',
+        'keep_tokens' : 0,
+        'resolution' : 768,
+        'lr_scheduler' : 'cosine_with_restarts',
+        'lora_type' : 'LoRA',
+        'custom_dataset' : None
     }
     try:
         with open(config_path, 'r') as f:
-            tuning_config = json.load(f)
+            tuning_config_loaded = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         print("Couldn't load config file, using default configs")
+    for keys in tuning_config:
+        if keys not in tuning_config_loaded:
+            tuning_config_loaded[keys] = tuning_config[keys]
+    tuning_config = tuning_config_loaded
     return tuning_config
 
 # generate_config('unet_lr' : 1e-5) -> returns new config modified with unet lr
@@ -93,13 +102,29 @@ if __name__ == '__main__':
     unet_lr_list = tuning_config['unet_lr_list'] #[1e-5, 1e-4, 2e-4, 3e-4] #1e-4
     text_encoder_lr_list = tuning_config['text_encoder_lr_list'] #[1e-5, 2e-5, 3e-5, 4e-5] #2e-5
     network_alpha_list = tuning_config['network_alpha_list'] #[2,4,8] #8
-    for unet_lr, text_encoder_lr, network_alpha in product(unet_lr_list, text_encoder_lr_list, network_alpha_list):
+    network_dim_list = tuning_config['network_dim_list'] #[16] #16
+    seed_list = tuning_config['seed_list']
+
+
+    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed in product(unet_lr_list, text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list):
         config = generate_config(project_name_base=project_name_base,unet_lr=unet_lr, 
                                 text_encoder_lr=text_encoder_lr, network_alpha=network_alpha,
                                 images_folder=args.images_folder if args.images_folder else "",
                                 model_file=args.model_file if args.model_file else "",
                                 cuda_device=tuning_config['CUDA_VISIBLE_DEVICES'] if args.cuda_device == '' else args.cuda_device,
-                                port=tuning_config['port'] if args.port == '' else args.port)
+                                port=tuning_config['port'] if args.port == '' else args.port,
+                                sample_opt=tuning_config['sample_opt'],
+                                sample_num=tuning_config['sample_num'],
+                                seed=tuning_config['seed'],
+                                prompt_path=tuning_config['prompt_path'],
+                                keep_tokens=tuning_config['keep_tokens'],
+                                resolution=tuning_config['resolution'],
+                                lr_scheduler=tuning_config['lr_scheduler'],
+                                lora_type=tuning_config['lora_type'],
+                                custom_dataset=tuning_config['custom_dataset'],
+                                network_dim = network_dim,
+                                seed = seed
+                                )
         #print(config)
         print(f"running _{train_id}")
         command_inputs = ["python", "trainer.py"]

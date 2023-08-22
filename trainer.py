@@ -350,6 +350,8 @@ if __name__ == "__main__":
   parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
   # lora type
   parser.add_argument('--lora_type', type=str, default='LoRA', help='LoRA type for the project (default: LoRA)')
+  # clip skip
+  parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
 
 
   args = parser.parse_args()

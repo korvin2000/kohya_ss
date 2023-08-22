@@ -53,7 +53,8 @@ def load_default_config(config_path:str):
         'resolution' : 768,
         'lr_scheduler' : 'cosine_with_restarts',
         'lora_type' : 'LoRA',
-        'custom_dataset' : None
+        'custom_dataset' : None,
+        'clip_skip' : 2
     }
     try:
         with open(config_path, 'r') as f:
@@ -86,7 +87,8 @@ def load_tuning_config(config_path:str):
         'resolution' : 768,
         'lr_scheduler' : 'cosine_with_restarts',
         'lora_type' : 'LoRA',
-        'custom_dataset' : None
+        'custom_dataset' : None,
+        'clip_skip_list' : [1,2]
     }
     try:
         with open(config_path, 'r') as f:
@@ -136,10 +138,11 @@ if __name__ == '__main__':
     network_alpha_list = tuning_config['network_alpha_list'] #[2,4,8] #8
     network_dim_list = tuning_config['network_dim_list'] #[16] #16
     seed_list = tuning_config['seed_list'] if 'seed_list' in tuning_config else [42] #[42]
+    clip_skip = tuning_config['clip_skip_list'] if 'clip_skip_list' in tuning_config else [2] #[2]
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
 
-    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed in product(unet_lr_list, text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list):
+    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip in product(unet_lr_list, text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list):
         config = generate_config(project_name_base=project_name_base,unet_lr=unet_lr, 
                                 text_encoder_lr=text_encoder_lr, network_alpha=network_alpha,
                                 images_folder=args.images_folder if args.images_folder else "",
@@ -156,6 +159,7 @@ if __name__ == '__main__':
                                 lora_type=tuning_config['lora_type'],
                                 custom_dataset=tuning_config['custom_dataset'],
                                 network_dim = network_dim,
+                                clip_skip = clip_skip,
                                 )
         #print(config)
         print(f"running _{train_id}")

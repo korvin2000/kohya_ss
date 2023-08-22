@@ -154,6 +154,9 @@ if __name__ == '__main__':
 
     for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip in product(unet_lr_list,
         text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list, clip_skip_list):
+        if text_encoder_lr > unet_lr:
+            print("text_encoder_lr > unet_lr, skipping")
+            continue
         config = generate_config(project_name_base=project_name_base,unet_lr=unet_lr, 
                                 text_encoder_lr=text_encoder_lr, network_alpha=network_alpha,
                                 images_folder=args.images_folder if args.images_folder else "",

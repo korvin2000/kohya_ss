@@ -276,6 +276,8 @@ def create_config():
 
 def main():
   for dir in (main_dir, repo_dir, log_folder, images_folder, output_folder, config_folder):
+    if not dir:
+      continue
     os.makedirs(dir, exist_ok=True)
   if not validate_dataset():
     return
@@ -295,8 +297,8 @@ if __name__ == "__main__":
                       help='CUDA device number (default: 4)')
   parser.add_argument('--project_name_base', type=str, default='WEBTOON_ALL',
                       help='Base name for the project (default: WEBTOON_ALL)')
-  parser.add_argument('--model_file', type=str, default='/data3/space/space-cowork-sdwebui/sdwebui/stable-diffusion-webui/models/Stable-diffusion/novelai-all.ckpt',
-                      help='Path to the model file (default: /data3/space/space-cowork-sdwebui/sdwebui/stable-diffusion-webui/models/Stable-diffusion/novelai-all.ckpt)')
+  parser.add_argument('--model_file', type=str, default='./model.ckpt',
+                      help='Path to the model file (default: ./model.ckpt)')
   parser.add_argument('--optimizer', type=str, default='AdamW8bit',
                       help='Optimizer to use (default: AdamW8bit)')
   parser.add_argument('--network_dim', type=int, default=16,
@@ -326,9 +328,8 @@ if __name__ == "__main__":
   # add custon suffix
   parser.add_argument('--custom_suffix', type=str, default='',
                       help='Custom suffix for the project name (default: "")')
-  # copy target path = /data3/space/research-sdwebui/stable-diffusion-webui/models/Lora
-  parser.add_argument('--target_path', type=str, default='/data3/space/research-sdwebui/stable-diffusion-webui/models/Lora',
-                      help='Target path for the project (default: /data3/space/research-sdwebui/stable-diffusion-webui/models/Lora)')
+  parser.add_argument('--target_path', type=str, default='./models/Lora',
+                      help='Target path for the project (default: ./models/Lora)')
   parser.add_argument('--temp_dir', type=str, default='', help='Temporary directory for the project (default: "")')
   # add port to use for accelerate
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
@@ -383,9 +384,10 @@ if __name__ == "__main__":
   repo_dir = args.repo_dir
   port_num = args.port
   port_fallback = args.port_fallback
+  images_folder = f"./Loras/{project_name_base}/dataset/" if args.images_folder == '' else args.images_folder
   if args.custom_dataset:
     print("Custom dataset will be loaded from " + args.custom_dataset + " , images_folder will be ignored.")
-  images_folder = f"/data3/space/kohya_ss/colab_ipynb/Loras/{project_name_base}/dataset/" if args.images_folder == '' else args.images_folder
+    images_folder = ''
   project_name = f"{project_name_base}_autotrain" #@param {type:"string"}
   skip_model_test = True
   custom_dataset = None

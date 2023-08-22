@@ -278,6 +278,7 @@ def main():
   for dir in (main_dir, repo_dir, log_folder, images_folder, output_folder, config_folder):
     if not dir:
       continue
+    print("Creating directory "+dir)
     os.makedirs(dir, exist_ok=True)
   if not validate_dataset():
     return

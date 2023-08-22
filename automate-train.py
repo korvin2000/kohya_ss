@@ -28,7 +28,7 @@ def load_default_config(config_path:str):
     """
     default_configs = {
         'project_name_base' : "BASE", 
-        'model_file' :'model.safetensors',
+        'model_file' :'./model.safetensors',
         'optimizer' : 'AdamW8bit',
         'network_dim' : 16,
         'network_alpha' : 8,
@@ -39,8 +39,8 @@ def load_default_config(config_path:str):
         'train_batch_size' : 4,
         'unet_lr' : 1e-4,
         'text_encoder_lr' : 2e-5,
-        'target_path' : '/train',
-        'temp_dir' : '/tmp',
+        'target_path' : './train',
+        'temp_dir' : './tmp',
         'images_folder' : '',
         'cuda_device' : '0',
         'repo_dir' : '.',
@@ -48,7 +48,7 @@ def load_default_config(config_path:str):
         'sample_opt' : 'epoch',
         'sample_num' : 1,
         'seed' : 42,
-        'prompt_path' : '/prompt/prompt.txt',
+        'prompt_path' : './prompt/prompt.txt',
         'keep_tokens' : 0,
         'resolution' : 768,
         'lr_scheduler' : 'cosine_with_restarts',
@@ -67,6 +67,16 @@ def load_default_config(config_path:str):
     default_configs = default_configs_loaded
     return default_configs
 
+def convert_relative_path_to_absolute_path(dict_config:dict):
+    """
+    dict_config: dict of configs
+    Converts relative path to absolute path
+    """
+    for key, value in dict_config.items():
+        if key in ['target_path', 'temp_dir', 'images_folder', 'model_file', 'prompt_path']:
+            dict_config[key] = os.path.abspath(value)
+    return dict_config
+
 def load_tuning_config(config_path:str):
     """
     config_path: path to json file containing default configs
@@ -82,7 +92,7 @@ def load_tuning_config(config_path:str):
         'sample_opt' : 'epoch',
         'sample_num' : 1,
         'seed_list' : [42],
-        'prompt_path' : '/prompt/prompt.txt',
+        'prompt_path' : './prompt/prompt.txt',
         'keep_tokens' : 0,
         'resolution' : 768,
         'lr_scheduler' : 'cosine_with_restarts',

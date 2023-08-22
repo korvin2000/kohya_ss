@@ -8,7 +8,6 @@ import json
 import socket
 from typing import Tuple
 
-
 def get_available_port(port: int, max_retries=100) -> int:
   tried_ports = []
   while port < 65535:
@@ -31,7 +30,7 @@ def validate_dataset():
     print("Using custom dataset config file ", override_dataset_config_file)
     custom_dataset = override_dataset_config_file
   global lr_warmup_steps, lr_warmup_ratio, caption_extension, keep_tokens, keep_tokens_weight, weighted_captions, adjust_tags
-  supported_types = (".png", ".jpg", ".jpeg")
+  supported_types = (".png", ".jpg", ".jpeg", 'jfif')
 
   print("\n💿 Checking dataset...")
   if not project_name.strip() or any(c in project_name for c in " .()\"'\\/"):
@@ -40,10 +39,14 @@ def validate_dataset():
 
   if custom_dataset:
     try:
-      datconf = toml.loads(custom_dataset)
+      print("📄 Using custom dataset config file "+custom_dataset)
+      assert os.path.exists(custom_dataset), "Custom dataset config file not found at "+custom_dataset
+      datconf = toml.load(custom_dataset)
       datasets = [d for d in datconf["datasets"][0]["subsets"]]
-    except:
+    except Exception as e:
       print(f"💥 Error: Your custom dataset is invalid or contains an error! Please check the original template.")
+      print(e)
+      raise e
       return
     reg = [d for d in datasets if d.get("is_reg", False)]
     for r in reg:
@@ -204,9 +207,9 @@ def create_config():
         "save_state": save_state,
         "save_last_n_epochs_state": 1 if save_state else None,
         "resume": last_resume_point,
-        "sample_every_n_steps": sample_num if sample_num and sample_opt.lowercase() == 'steps' else None,
-        "sample_every_n_epochs": sample_num if sample_num and sample_opt.lowercase() == 'epoch' else None,
-        "sample_prompts": prompt_path if prompt_path and sample_opt.lowercase() != 'None' else None
+        "sample_every_n_steps": sample_num if sample_num and sample_opt.lower() == 'steps' else None,
+        "sample_every_n_epochs": sample_num if sample_num and sample_opt.lower() == 'epoch' else None,
+        "sample_prompts": prompt_path if prompt_path and sample_opt.lower() != 'None' else None
       },
       "model_arguments": {
         "pretrained_model_name_or_path": model_file,
@@ -250,7 +253,7 @@ def create_config():
         "min_bucket_reso": 320 if resolution > 640 else 256,
         "max_bucket_reso": 1280 if resolution > 640 else 1024,
       },
-      "datasets": toml.loads(custom_dataset)["datasets"] if custom_dataset else [
+      "datasets": toml.load(custom_dataset)["datasets"] if custom_dataset else [
         {
           "subsets": [
             {
@@ -319,7 +322,7 @@ if __name__ == "__main__":
   # add image_folder
   parser.add_argument('--images_folder', type=str, default='')
   #add repo_dir
-  parser.add_argument('--repo_dir', type=str, default='/data3/space/kohya_ss/')
+  parser.add_argument('--repo_dir', type=str, default='.')
   # add custon suffix
   parser.add_argument('--custom_suffix', type=str, default='',
                       help='Custom suffix for the project name (default: "")')

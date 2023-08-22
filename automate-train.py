@@ -43,7 +43,7 @@ def load_default_config(config_path:str):
         'temp_dir' : '/tmp',
         'images_folder' : '',
         'cuda_device' : '0',
-        'repo_dir' : 'kohya_ss',
+        'repo_dir' : '.',
         'port' : 20060,
         'sample_opt' : 'epoch',
         'sample_num' : 1,
@@ -102,20 +102,26 @@ def load_tuning_config(config_path:str):
 # generate_config('unet_lr' : 1e-5) -> returns new config modified with unet lr
 
 if __name__ == '__main__':
+    import sys
+    execute_path = sys.executable # get path of python executable
     #print(getsourcefile(lambda:0))
     abs_path = os.path.abspath(__file__)
     os.chdir(os.path.dirname(abs_path)) # execute from here
+    print(os.getcwd())
     parser = argparse.ArgumentParser()
     parser.add_argument('--project_name_base', type=str, default='BASE')
     parser.add_argument('--default_config_path', type=str, default='default_config.json')
     parser.add_argument('--tuning_config_path', type=str, default='tuning_config.json')
     # train_id_start
-    parser.add_argument('--train_id_start', type=int, default=0)
+    parser.add_argument('--train_id_start', type=int, default=0) #optional
     # images_folder
-    parser.add_argument('--images_folder', type=str, default='')
-    parser.add_argument('--model_file', type=str, default='')
-    parser.add_argument('--port', type=str, default='')
-    parser.add_argument('--cuda_device', type=str, default='')
+    parser.add_argument('--images_folder', type=str, default='') #optional
+    parser.add_argument('--model_file', type=str, default='') #optional
+    parser.add_argument('--port', type=str, default='') #optional
+    parser.add_argument('--cuda_device', type=str, default='') #optional
+
+    # python automate-train.py --project_name_base BASE --default_config_path default_config.json --tuning_config_path tuning_config.json 
+    # --train_id_start 0 --images_folder '' --model_file '' --port '' --cuda_device ''
 
     args = parser.parse_args()
     # model_file
@@ -129,8 +135,9 @@ if __name__ == '__main__':
     text_encoder_lr_list = tuning_config['text_encoder_lr_list'] #[1e-5, 2e-5, 3e-5, 4e-5] #2e-5
     network_alpha_list = tuning_config['network_alpha_list'] #[2,4,8] #8
     network_dim_list = tuning_config['network_dim_list'] #[16] #16
-    seed_list = tuning_config['seed_list']
-
+    seed_list = tuning_config['seed_list'] if 'seed_list' in tuning_config else [42] #[42]
+    if "PORT" in tuning_config:
+        tuning_config['port'] = tuning_config['PORT']
 
     for unet_lr, text_encoder_lr, network_alpha, network_dim, seed in product(unet_lr_list, text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list):
         config = generate_config(project_name_base=project_name_base,unet_lr=unet_lr, 
@@ -141,7 +148,7 @@ if __name__ == '__main__':
                                 port=tuning_config['port'] if args.port == '' else args.port,
                                 sample_opt=tuning_config['sample_opt'],
                                 sample_num=tuning_config['sample_num'],
-                                seed=tuning_config['seed'],
+                                seed=seed,
                                 prompt_path=tuning_config['prompt_path'],
                                 keep_tokens=tuning_config['keep_tokens'],
                                 resolution=tuning_config['resolution'],
@@ -149,11 +156,10 @@ if __name__ == '__main__':
                                 lora_type=tuning_config['lora_type'],
                                 custom_dataset=tuning_config['custom_dataset'],
                                 network_dim = network_dim,
-                                seed = seed
                                 )
         #print(config)
         print(f"running _{train_id}")
-        command_inputs = ["python", "trainer.py"]
+        command_inputs = [execute_path, "trainer.py"]
         for arguments, values in config.items():
             command_inputs.append(f"--{arguments}")
             command_inputs.append(str(values))

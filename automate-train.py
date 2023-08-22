@@ -138,11 +138,12 @@ if __name__ == '__main__':
     network_alpha_list = tuning_config['network_alpha_list'] #[2,4,8] #8
     network_dim_list = tuning_config['network_dim_list'] #[16] #16
     seed_list = tuning_config['seed_list'] if 'seed_list' in tuning_config else [42] #[42]
-    clip_skip = tuning_config['clip_skip_list'] if 'clip_skip_list' in tuning_config else [2] #[2]
+    clip_skip_list = tuning_config['clip_skip_list'] if 'clip_skip_list' in tuning_config else [2] #[2]
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
 
-    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip in product(unet_lr_list, text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list):
+    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip in product(unet_lr_list,
+        text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list, clip_skip_list):
         config = generate_config(project_name_base=project_name_base,unet_lr=unet_lr, 
                                 text_encoder_lr=text_encoder_lr, network_alpha=network_alpha,
                                 images_folder=args.images_folder if args.images_folder else "",

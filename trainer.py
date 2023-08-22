@@ -386,6 +386,7 @@ if __name__ == "__main__":
   port_num = args.port
   port_fallback = args.port_fallback
   images_folder = f"./Loras/{project_name_base}/dataset/" if args.images_folder == '' else args.images_folder
+  custom_dataset = None
   if args.custom_dataset and os.path.exists(args.custom_dataset):
     print("Custom dataset will be loaded from " + args.custom_dataset + " , images_folder will be ignored.")
     images_folder = ''

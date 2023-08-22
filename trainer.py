@@ -29,6 +29,8 @@ def validate_dataset():
   if override_dataset_config_file:
     print("Using custom dataset config file ", override_dataset_config_file)
     custom_dataset = override_dataset_config_file
+  else:
+    custom_dataset = None
   global lr_warmup_steps, lr_warmup_ratio, caption_extension, keep_tokens, keep_tokens_weight, weighted_captions, adjust_tags
   supported_types = (".png", ".jpg", ".jpeg", 'jfif')
 

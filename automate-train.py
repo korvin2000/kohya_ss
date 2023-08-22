@@ -16,7 +16,7 @@ def generate_config(**modified_kwargs):
     for key, value in modified_kwargs.items():
         if key not in default_configs:
             raise ValueError(f"key {key} not in default_configs")
-        if value == "" or value == None:
+        if value == "" or value is None:
             continue
         copied_config[key] = value
     return copied_config
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                                 resolution=tuning_config['resolution'],
                                 lr_scheduler=tuning_config['lr_scheduler'],
                                 lora_type=tuning_config['lora_type'],
-                                custom_dataset=tuning_config['custom_dataset'],
+                                custom_dataset=tuning_config['custom_dataset'] if tuning_config['custom_dataset'] else None,
                                 network_dim = network_dim,
                                 clip_skip = clip_skip,
                                 )

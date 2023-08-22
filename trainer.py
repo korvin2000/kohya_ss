@@ -320,7 +320,7 @@ if __name__ == "__main__":
                       help='Learning rate for the UNet (default: 1e-4)')
   parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
                       help='Learning rate for the text encoder (default: 2e-5)')
-  parser.add_argument('--custom_dataset', type=str, default=None,
+  parser.add_argument('--custom_dataset', type=str, default="",
                       help='Custom dataset config path. (default: None)')
   # add image_folder
   parser.add_argument('--images_folder', type=str, default='')
@@ -386,9 +386,14 @@ if __name__ == "__main__":
   port_num = args.port
   port_fallback = args.port_fallback
   images_folder = f"./Loras/{project_name_base}/dataset/" if args.images_folder == '' else args.images_folder
-  if args.custom_dataset:
+  if args.custom_dataset and os.path.exists(args.custom_dataset):
     print("Custom dataset will be loaded from " + args.custom_dataset + " , images_folder will be ignored.")
     images_folder = ''
+  elif args.custom_dataset and not os.path.exists(args.custom_dataset):
+    if args.custom_dataset.lower() == 'none' or args.custom_dataset.lower() == 'null' or args.custom_dataset.lower() == 'false':
+      print("Custom dataset will not be loaded, images_folder will be used.")
+    else:
+      raise Exception("Custom dataset not found at " + args.custom_dataset)
   project_name = f"{project_name_base}_autotrain" #@param {type:"string"}
   skip_model_test = True
   custom_dataset = None

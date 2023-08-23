@@ -2135,7 +2135,7 @@ def cache_batch_latents(
     for info in image_infos:
         image = load_image(info.absolute_path, in_channels) if info.image is None else np.array(info.image, np.uint8)
         # TODO 画像のメタデータが壊れていて、メタデータから割り当てたbucketと実際の画像サイズが一致しない場合があるのでチェック追加要
-
+        print(f"image.shape: {image.shape}")
         image, original_size, crop_ltrb = trim_and_resize_if_required(random_crop, image, info.bucket_reso, info.resized_size)
         image = IMAGE_TRANSFORMS(image)
         images.append(image)

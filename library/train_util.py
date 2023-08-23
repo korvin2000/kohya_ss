@@ -4577,7 +4577,9 @@ class TransparentImageLoadingDataset(torch.utils.data.Dataset):
         img_path = self.images[idx]
 
         try:
-            image = Image.open(img_path).convert("RGB")
+            image = Image.open(img_path)
+            if image.mode != "RGBA":
+                image = image.convert("RGBA")
             # convert to tensor temporarily so dataloader will accept it
             tensor_pil = transforms.functional.pil_to_tensor(image)
         except Exception as e:

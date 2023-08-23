@@ -7,6 +7,24 @@ import json
 tuning_config = {
 }
 
+def update_config(tuning_config_path : str) -> None:
+    """
+    replace old keys with new keys
+    """
+    keys_to_replace = {
+        "CUDA_VISIBLE_DEVICES" : "cuda_device",
+        "PORT" : "port"
+    }
+    with open(tuning_config_path, 'r') as f:
+        tuning_config = json.load(f)
+    for keys in keys_to_replace:
+        if keys in tuning_config:
+            tuning_config[keys_to_replace[keys]] = tuning_config[keys]
+            del tuning_config[keys]
+    with open(tuning_config_path, 'w') as f:
+        json.dump(tuning_config, f, indent=4)
+
+
 def generate_config(**modified_kwargs) -> dict:
     """
     modified_kwargs: dict of key, value pairs to be modified from default_configs
@@ -114,6 +132,7 @@ def load_tuning_config(config_path:str):
         'lora_type' : 'LoRA',
         'custom_dataset' : None,
     }
+    update_config(config_path)
     try:
         with open(config_path, 'r') as f:
             tuning_config_loaded = json.load(f)

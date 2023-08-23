@@ -78,7 +78,7 @@ def load_default_config(config_path:str):
         with open(config_path, 'r') as f:
             default_configs_loaded = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        print("Couldn't load config file, using default configs")
+        print("Couldn't load config file at {}, using default configs".format(config_path))
     for keys in default_configs:
         if keys not in default_configs_loaded:
             default_configs_loaded[keys] = default_configs[keys]
@@ -148,9 +148,10 @@ def load_tuning_config(config_path:str):
 # generate_config('unet_lr' : 1e-5) -> returns new config modified with unet lr
 
 if __name__ == '__main__':
+
+    # check if venv is activated
+    # if not, activate venv
     import sys
-    execute_path = sys.executable # get path of python executable
-    #print(getsourcefile(lambda:0))
     abs_path = os.path.abspath(__file__)
     os.chdir(os.path.dirname(abs_path)) # execute from here
     print(os.getcwd())
@@ -166,6 +167,8 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=str, default='') #optional
     parser.add_argument('--cuda_device', type=str, default='') #optional
     parser.add_argument('--debug', action='store_true', default=False) #optional
+    # venv path
+    parser.add_argument('--venv_path', type=str, default='') #optional
 
     # python automate-train.py --project_name_base BASE --default_config_path default_config.json --tuning_config_path tuning_config.json 
     # --train_id_start 0 --images_folder '' --model_file '' --port '' --cuda_device ''
@@ -176,7 +179,24 @@ if __name__ == '__main__':
     model_name = args.model_file
     images_folder = args.images_folder
     cuda_device = args.cuda_device
-
+    venv_path = args.venv_path
+    # handling venv
+    if venv_path != '':
+        execute_path = os.path.join(venv_path, 'bin', 'python')
+    else:
+        if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+            execute_path = sys.executable # get path of python executable
+        else:
+            print("venv not activated, activating venv. This uses relative path, so locate this script in the same folder as venv")
+            venv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv') # expected venv path
+            if not os.path.exists(venv_path):
+                raise ValueError("venv not found at {}".format(venv_path))
+            # os-specific venv activation, windows -> Scripts, posix -> bin
+            if os.name == 'nt': # windows
+                execute_path = os.path.join(venv_path, 'Scripts', 'python.exe')
+            else: # posix
+                execute_path = os.path.join(venv_path, 'bin', 'python')
+    print(f"using python executable at {execute_path}")
     train_id = args.train_id_start
     default_configs = load_default_config(args.default_config_path)
     tuning_config = load_tuning_config(args.tuning_config_path)

@@ -362,8 +362,6 @@ if __name__ == "__main__":
 
   args = parser.parse_args()
   # TODO : separate validation
-  assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
-  assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
   os.environ["CUDA_VISIBLE_DEVICES"] = str(args.cuda_device)
   if args.target_path != '':
     print("Target path will be used as "+args.target_path)
@@ -380,13 +378,15 @@ if __name__ == "__main__":
   sample_num = args.sample_num
   sample_opt = args.sample_opt
   prompt_path = args.prompt_path
-  assert sample_opt == 'None' or not prompt_path or os.path.exists(prompt_path), "Prompt file not found at "+prompt_path
   train_batch_size = args.train_batch_size
   unet_lr = args.unet_lr
   text_encoder_lr = args.text_encoder_lr
   suffix = args.custom_suffix
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
+  assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
+  assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
+  assert sample_opt == 'None' or not prompt_path or os.path.exists(prompt_path), "Prompt file not found at "+prompt_path
   assert clip_skip in [1, 2], "Clip skip must be 1 or 2, but given "+str(clip_skip)
   assert max_grad_norm >= 0.0, "Max grad norm must be positive, but given "+str(max_grad_norm)
   curdir = os.path.dirname(os.path.abspath(__file__)) 
@@ -460,14 +460,13 @@ if __name__ == "__main__":
 
 
   if optimizer == "DAdaptation":
+    print("Using DAdaptation optimizer, the following arguments will be ignored:")
+    print("unet_lr, text_encoder_lr, optimizer_args, lr_scheduler")
     optimizer_args = ["decouple=True","weight_decay=0.02","betas=[0.9,0.99]"]
     unet_lr = 0.5
     text_encoder_lr = 0.5
     lr_scheduler = "constant_with_warmup"
-    network_alpha = network_dim
-
-  #root_dir = os.path.abspath("./Loras")
-  #deps_dir = os.path.join(root_dir, "deps")
+    #network_alpha = network_dim
   
   main_dir      = root_dir
   log_folder    = os.path.join(main_dir, "_logs")

@@ -1235,7 +1235,6 @@ def save_diffusers_checkpoint(v2, output_dir, text_encoder, unet, pretrained_mod
     if vae is None:
         vae = AutoencoderKL.from_pretrained(pretrained_model_name_or_path, subfolder="vae")
 
-    print("saving unet model", unet)
     pipeline = StableDiffusionPipeline(
         unet=unet,
         text_encoder=text_encoder,

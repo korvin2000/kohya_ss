@@ -360,6 +360,10 @@ def train(args):
             init_kwargs = toml.load(args.log_tracker_config)
         accelerator.init_trackers("finetuning" if args.log_tracker_name is None else args.log_tracker_name, init_kwargs=init_kwargs)
 
+    #get weight's dtype of text_encoder1
+    text_encoder1_weight_dtype = next(text_encoder1.parameters()).dtype
+    print("text_encoder1_weight_dtype: ", text_encoder1_weight_dtype)
+
     for epoch in range(num_train_epochs):
         accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
         current_epoch.value = epoch + 1

@@ -191,7 +191,7 @@ def create_config():
         "save_last_n_epochs": keep_only_last_n_epochs,
         "train_batch_size": train_batch_size,
         "noise_offset": None,
-        "clip_skip": 2,
+        "clip_skip": clip_skip,
         "min_snr_gamma": min_snr_gamma_value,
         "weighted_captions": weighted_captions,
         "seed": training_seed,
@@ -211,7 +211,8 @@ def create_config():
         "resume": last_resume_point,
         "sample_every_n_steps": sample_num if sample_num and sample_opt.lower() == 'steps' else None,
         "sample_every_n_epochs": sample_num if sample_num and sample_opt.lower() == 'epoch' else None,
-        "sample_prompts": prompt_path if prompt_path and sample_opt.lower() != 'None' else None
+        "sample_prompts": prompt_path if prompt_path and sample_opt.lower() != 'None' else None,
+        "max_grad_norm": max_grad_norm if max_grad_norm else 0.0
       },
       "model_arguments": {
         "pretrained_model_name_or_path": model_file,
@@ -331,8 +332,8 @@ if __name__ == "__main__":
   # add custon suffix
   parser.add_argument('--custom_suffix', type=str, default='',
                       help='Custom suffix for the project name (default: "")')
-  parser.add_argument('--target_path', type=str, default='./models/Lora',
-                      help='Target path for the project (default: ./models/Lora)')
+  parser.add_argument('--target_path', type=str, default='',
+                      help='Target path for the project (default: "")')
   parser.add_argument('--temp_dir', type=str, default='', help='Temporary directory for the project (default: "")')
   # add port to use for accelerate
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
@@ -356,13 +357,16 @@ if __name__ == "__main__":
   parser.add_argument('--lora_type', type=str, default='LoRA', help='LoRA type for the project (default: LoRA)')
   # clip skip
   parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
-
+  # max_grad_norm
+  parser.add_argument('--max_grad_norm', type=float, default=0.0, help='Max grad norm for the project (default: 0.0)')
 
   args = parser.parse_args()
   # TODO : separate validation
   assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
   assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
   os.environ["CUDA_VISIBLE_DEVICES"] = str(args.cuda_device)
+  if args.target_path != '':
+    print("Target path will be used as "+args.target_path)
   project_name_base = args.project_name_base
   model_file = args.model_file
   optimizer = args.optimizer
@@ -381,6 +385,10 @@ if __name__ == "__main__":
   unet_lr = args.unet_lr
   text_encoder_lr = args.text_encoder_lr
   suffix = args.custom_suffix
+  max_grad_norm = args.max_grad_norm
+  clip_skip = args.clip_skip
+  assert clip_skip in [1, 2], "Clip skip must be 1 or 2, but given "+str(clip_skip)
+  assert max_grad_norm >= 0.0, "Max grad norm must be positive, but given "+str(max_grad_norm)
   curdir = os.path.dirname(os.path.abspath(__file__)) 
   root_dir = args.temp_dir if args.temp_dir != '' else "./Loras"
   os.chdir(curdir) # change directory to current directory
@@ -472,6 +480,8 @@ if __name__ == "__main__":
   main()
   #after training, from output_folder, move model file to target_path
   target_path = args.target_path
+  if target_path != '' and os.path.exists(output_folder):
+    print("Moving model to target path " + target_path)
   if not os.path.exists(target_path):
     os.makedirs(target_path)
   #   # move {project_name}.safetensors to target_path

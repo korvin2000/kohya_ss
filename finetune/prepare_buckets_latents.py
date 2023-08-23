@@ -201,7 +201,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument("model_name_or_path", type=str, help="model name or path to encode latents / latentを取得するためのモデル")
     parser.add_argument("--v2", action="store_true", help="not used (for backward compatibility) / 使用されません（互換性のため残してあります）")
     parser.add_argument("--batch_size", type=int, default=1, help="batch size in inference / 推論時のバッチサイズ")
-    parser.add_argument("--in_channels", type=int, default=3, help="num of input image channels / 推論時のバッチサイズ")
+    parser.add_argument("--in_channels", type=int, default=3, help="num of input image channels")
     parser.add_argument(
         "--max_data_loader_n_workers",
         type=int,

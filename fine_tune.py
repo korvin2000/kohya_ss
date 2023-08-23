@@ -291,6 +291,7 @@ def train(args):
 
         loss_total = 0
         for step, batch in enumerate(train_dataloader):
+            print("batch[images]", batch["images"])
             current_step.value = global_step
             with accelerator.accumulate(training_models[0]):  # 複数モデルに対応していない模様だがとりあえずこうしておく
                 with torch.no_grad():

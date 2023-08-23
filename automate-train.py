@@ -72,7 +72,12 @@ def load_default_config(config_path:str):
         'lr_scheduler' : 'cosine_with_restarts',
         'lora_type' : 'LoRA',
         'custom_dataset' : None,
-        'clip_skip' : 2
+        'clip_skip' : 2,
+        'max_grad_norm' : 0,
+        'up_lr_weight' : '[1,1,1,1,1,1,1,1,1,1,1,1]',
+        'down_lr_weight' : '[1,1,1,1,1,1,1,1,1,1,1,1]',
+        'mid_lr_weight' : 1,
+        'lbw_weights' : '' # [1,]*17 or [1]* 16, modify this if you want
     }
     try:
         with open(config_path, 'r') as f:

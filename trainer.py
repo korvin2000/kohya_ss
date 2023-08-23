@@ -7,6 +7,8 @@ import shutil
 import json
 import socket
 from typing import Tuple
+from ast import literal_eval
+
 
 def get_available_port(port: int, max_retries=100) -> int:
   tried_ports = []
@@ -293,6 +295,28 @@ def main():
   subprocess.check_call(["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file])
   # move model to output folder
 
+def get_separated_list(result_list) -> dict:
+    all_list = [1] * 25
+    if len(result_list) == 17:
+        # using minimal-setup which is being applied for loras
+        text_encoder_lr = result_list[0]
+        result_list = result_list[1:]
+    else:
+        text_encoder_lr = 1
+    if len(result_list) == 16:
+        convert_target_idxs = [1, 2, 4, 5, 7, 8, 12, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+        for idx, value in enumerate(result_list):
+            target_idx = convert_target_idxs[idx]
+            all_list[target_idx] = value
+    else:
+        # using full-setup which is being applied for loras
+        text_encoder_lr = 1
+        for _idx, _items in enumerate(result_list):
+            all_list[_idx] = _items
+    # 13th item(idx 12) is middle
+    down, middle, up = all_list[:12], all_list[12], all_list[13:]
+
+    return text_encoder_lr, down, middle, up
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='LoRA Trainer')
@@ -359,8 +383,33 @@ if __name__ == "__main__":
   parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
   # max_grad_norm
   parser.add_argument('--max_grad_norm', type=float, default=0.0, help='Max grad norm for the project (default: 0.0)')
-
+  parser.add_argument('--up_lr_weight', type=str, default="[1,1,1,1,1,1,1,1,1,1,1,1]",
+                      help='Lora block weight up for the project (default: [1,1,1,1,1,1,1,1,1,1,1,1])')
+  parser.add_argument('--down_lr_weight', type=str, default="[1,1,1,1,1,1,1,1,1,1,1,1]",
+                      help='Lora block weight down for the project (default: [1,1,1,1,1,1,1,1,1,1,1,1])')
+  parser.add_argument('--mid_lr_weight', type=str, default='1',
+                      help='Lora block weight mid for the project (default: 1)')
+  # add 17-length list input for text/down/middle/up lr weight parsing
+  parser.add_argument('--lbw_weights', type=str, default='',
+                      help='Optional 16 or 17-length list input for text/down/middle/up lr weight parsing (default: ""), this will disable other block lr arguments')
   args = parser.parse_args()
+
+  try:
+    down_lr_weight = literal_eval(args.down_lr_weight)
+    up_lr_weight = literal_eval(args.up_lr_weight)
+    mid_lr_weight = float(args.mid_lr_weight)
+  except Exception as e:
+    print("Error while parsing lora block lr weights")
+    raise e
+  if args.lbw_weights != '':
+    print("Using custom lora block lr weights")
+    lbw_list = literal_eval(args.lbw_weights)
+    if len(lbw_list) not in [16, 17]:
+      raise Exception("Length of lbw_weights must be 16 or 17, but given "+str(len(lbw_list)))
+    lbw_text_encoder_lr_mult, down_lr_weight, mid_lr_weight, up_lr_weight = get_separated_list(lbw_list)
+  else:
+    lbw_text_encoder_lr_mult = 1
+  
   # TODO : separate validation
   os.environ["CUDA_VISIBLE_DEVICES"] = str(args.cuda_device)
   if args.target_path != '':
@@ -380,7 +429,7 @@ if __name__ == "__main__":
   prompt_path = args.prompt_path
   train_batch_size = args.train_batch_size
   unet_lr = args.unet_lr
-  text_encoder_lr = args.text_encoder_lr
+  text_encoder_lr = args.text_encoder_lr * lbw_text_encoder_lr_mult
   suffix = args.custom_suffix
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
@@ -448,10 +497,14 @@ if __name__ == "__main__":
   lora_type = args.lora_type #@param ["LoRA", "LoCon Lycoris", "LoHa Lycoris"]
   conv_compression = False #@param {type:"boolean"}
   network_module = "lycoris.kohya" if "Lycoris" in lora_type else "networks.lora"
-  network_args = None if lora_type == "LoRA" else [
-    f"conv_dim={conv_dim}",
-    f"conv_alpha={conv_alpha}",
+  network_args = [
+    "down_lr_weight="+','.join(str(x) for x in down_lr_weight),
+    "up_lr_weight="+','.join(str(x) for x in up_lr_weight),
+    "mid_lr_weight="+str(mid_lr_weight),
   ]
+  if lora_type != "LoRA":
+    network_args.append(f"conv_dim={conv_dim}")
+    network_args.append(f"conv_alpha={conv_alpha}")
   if "Lycoris" in lora_type:
     network_args.append(f"algo={'loha' if 'LoHa' in lora_type else 'lora'}")
     network_args.append(f"disable_conv_cp={str(not conv_compression)}")
@@ -464,8 +517,9 @@ if __name__ == "__main__":
     print("unet_lr, text_encoder_lr, optimizer_args, lr_scheduler")
     optimizer_args = ["decouple=True","weight_decay=0.02","betas=[0.9,0.99]"]
     unet_lr = 0.5
-    text_encoder_lr = 0.5
-    lr_scheduler = "constant_with_warmup"
+    text_encoder_lr = 0.5 * lbw_text_encoder_lr_mult
+    if lr_scheduler != "constant_with_warmup":
+      print(f"Using lr scheduler {lr_scheduler}, recommended for DAdaptation is constant_with_warmup")
     #network_alpha = network_dim
   
   main_dir      = root_dir

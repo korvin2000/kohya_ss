@@ -126,8 +126,12 @@ def main(args):
         else:
             try:
                 image = Image.open(image_path)
-                if image.mode != "RGB":
-                    image = image.convert("RGB")
+                if args.in_channels == 4:
+                    if image.mode != "RGBA":
+                        image = image.convert("RGBA")
+                else:
+                    if image.mode != "RGB":
+                        image = image.convert("RGB")
             except Exception as e:
                 print(f"Could not load image path / 画像を読み込めません: {image_path}, error: {e}")
                 continue

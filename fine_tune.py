@@ -115,6 +115,7 @@ def train(args):
         save_stable_diffusion_format = args.save_model_as.lower() == "ckpt" or args.save_model_as.lower() == "safetensors"
         use_safetensors = args.use_safetensors or ("safetensors" in args.save_model_as.lower())
 
+    print("save_stable_diffusion_format: ", save_stable_diffusion_format)
     # Diffusers版のxformers使用フラグを設定する関数
     def set_diffusers_xformers_flag(model, valid):
         #   model.set_use_memory_efficient_attention_xformers(valid)            # 次のリリースでなくなりそう

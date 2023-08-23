@@ -2074,10 +2074,14 @@ def load_arbitrary_dataset(args, tokenizer) -> MinimalDataset:
     return train_dataset_group
 
 
-def load_image(image_path):
+def load_image(image_path, in_channels=3):
     image = Image.open(image_path)
-    if not image.mode == "RGB":
-        image = image.convert("RGB")
+    if in_channels == 4:
+        if not image.mode == "RGBA":
+            image = image.convert("RGBA")
+    else:
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
     img = np.array(image, np.uint8)
     return img
 
@@ -2116,7 +2120,7 @@ def trim_and_resize_if_required(
 
 
 def cache_batch_latents(
-    vae: AutoencoderKL, cache_to_disk: bool, image_infos: List[ImageInfo], flip_aug: bool, random_crop: bool
+    vae: AutoencoderKL, cache_to_disk: bool, image_infos: List[ImageInfo], flip_aug: bool, random_crop: bool, in_channels: int=3
 ) -> None:
     r"""
     requires image_infos to have: absolute_path, bucket_reso, resized_size, latents_npz
@@ -2129,8 +2133,9 @@ def cache_batch_latents(
     """
     images = []
     for info in image_infos:
-        image = load_image(info.absolute_path) if info.image is None else np.array(info.image, np.uint8)
+        image = load_image(info.absolute_path, in_channels) if info.image is None else np.array(info.image, np.uint8)
         # TODO 画像のメタデータが壊れていて、メタデータから割り当てたbucketと実際の画像サイズが一致しない場合があるのでチェック追加要
+
         image, original_size, crop_ltrb = trim_and_resize_if_required(random_crop, image, info.bucket_reso, info.resized_size)
         image = IMAGE_TRANSFORMS(image)
         images.append(image)
@@ -2139,8 +2144,9 @@ def cache_batch_latents(
         info.latents_crop_ltrb = crop_ltrb
 
     img_tensors = torch.stack(images, dim=0)
+    print(f"img_tensors.shape1: {img_tensors.shape}")
     img_tensors = img_tensors.to(device=vae.device, dtype=vae.dtype)
-
+    print(f"img_tensors.shape2: {img_tensors.shape}")
     with torch.no_grad():
         latents = vae.encode(img_tensors).latent_dist.sample().to("cpu")
 

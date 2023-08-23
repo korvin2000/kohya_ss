@@ -92,10 +92,10 @@ def main(args):
     # 画像をひとつずつ適切なbucketに割り当てながらlatentを計算する
     img_ar_errors = []
 
-    def process_batch(is_last):
+    def process_batch(is_last, in_channels):
         for bucket in bucket_manager.buckets:
             if (is_last and len(bucket) > 0) or len(bucket) >= args.batch_size:
-                train_util.cache_batch_latents(vae, True, bucket, args.flip_aug, False)
+                train_util.cache_batch_latents(vae, True, bucket, args.flip_aug, False,in_channels=in_channels)
                 bucket.clear()
 
     # 読み込みの高速化のためにDataLoaderを使うオプション
@@ -173,10 +173,10 @@ def main(args):
         bucket_manager.add_image(reso, image_info)
 
         # バッチを推論するか判定して推論する
-        process_batch(False)
+        process_batch(False, args.in_channels)
 
     # 残りを処理する
-    process_batch(True)
+    process_batch(True, args.in_channels)
 
     bucket_manager.sort()
     for i, reso in enumerate(bucket_manager.resos):

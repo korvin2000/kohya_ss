@@ -1352,6 +1352,8 @@ class UNet2DConditionModel(nn.Module):
 
         # down
         output_channel = BLOCK_OUT_CHANNELS[0]
+        print("attention_head_dim", attention_head_dim)
+        print("len attention_head_dim", len(attention_head_dim))
         for i, down_block_type in enumerate(DOWN_BLOCK_TYPES):
             input_channel = output_channel
             output_channel = BLOCK_OUT_CHANNELS[i]

@@ -194,11 +194,14 @@ if __name__ == '__main__':
         else:
             print("venv not activated, activating venv. This uses relative path, so locate this script in the same folder as venv")
             venv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv') # expected venv path
+            os.chdir(os.path.dirname(os.path.abspath(__file__)))
             if not os.path.exists(venv_path):
                 raise ValueError("venv not found at {}".format(venv_path))
             # os-specific venv activation, windows -> Scripts, posix -> bin
             if os.name == 'nt': # windows
                 execute_path = os.path.join(venv_path, 'Scripts', 'python.exe')
+                #print("call " + os.path.abspath(".\\venv\\Scripts\\activate.bat"), shell=True)
+                #subprocess.check_call(["call", os.path.abspath(".\\venv\\Scripts\\activate.bat")], shell=True)
             else: # posix
                 execute_path = os.path.join(venv_path, 'bin', 'python')
     print(f"using python executable at {execute_path}")

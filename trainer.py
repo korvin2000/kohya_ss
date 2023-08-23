@@ -292,7 +292,12 @@ def main():
   assert os.path.exists(accelerate_config_file), "Config file not found at "+accelerate_config_file
   print("\n⭐ Starting trainer...\n")
   os.chdir(repo_dir)
-  subprocess.check_call(["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file])
+  print("Running accelerate launch... at "+repo_dir)
+  # call .\venv\Scripts\activate.bat
+  # set PATH=%PATH%;%~dp0venv\Lib\site-packages\torch\lib
+    # windows, required user venv..
+  subprocess.check_call(["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file],
+                        shell=True if os.name == 'nt' else False)
   # move model to output folder
 
 def get_separated_list(result_list) -> dict:

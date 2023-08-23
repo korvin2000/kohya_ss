@@ -7,7 +7,7 @@ import json
 tuning_config = {
 }
 
-def generate_config(**modified_kwargs):
+def generate_config(**modified_kwargs) -> dict:
     """
     modified_kwargs: dict of key, value pairs to be modified from default_configs
     If value is empty string or None, it will not be modified.
@@ -77,29 +77,42 @@ def convert_relative_path_to_absolute_path(dict_config:dict):
             dict_config[key] = os.path.abspath(value)
     return dict_config
 
+def generate_tuning_config(config, **modified_kwargs) -> dict:
+    """
+    modified_kwargs: dict of key, value pairs to be modified from default_configs
+    """
+    new_config = config.copy()
+    for keys in config.keys():
+        # remove _list
+        if keys.endswith('_list'):
+            del new_config[keys]
+    new_config.update(modified_kwargs)
+    return new_config
+
 def load_tuning_config(config_path:str):
     """
     config_path: path to json file containing default configs
     Loads default configs from json file, and returns a dict of configs
     """
     tuning_config = {
-        'unet_lr_list' : [1e-5, 1e-4, 2e-4, 3e-4],
-        'text_encoder_lr_list' : [1e-5, 2e-5, 3e-5, 4e-5],
-        'network_alpha_list' : [2,4,8],
-        'network_dim_list' : [16],
-        'CUDA_VISIBLE_DEVICES' : '0',
-        'PORT' : 20060,
+        # example, you can input as _list for iterating
+        #'unet_lr_list' : [1e-5, 1e-4, 2e-4, 3e-4],
+        #'text_encoder_lr_list' : [1e-5, 2e-5, 3e-5, 4e-5],
+        #'network_alpha_list' : [2,4,8],
+        #'network_dim_list' : [16],
+        #'clip_skip_list' : [1,2],
+        #'num_repeats_list' : [10],
+        #'seed_list' : [42],
+        'cuda_device' : '0',
+        'port' : 20060,
         'sample_opt' : 'epoch',
         'sample_num' : 1,
-        'seed_list' : [42],
         'prompt_path' : './prompt/prompt.txt',
         'keep_tokens' : 0,
         'resolution' : 768,
         'lr_scheduler' : 'cosine_with_restarts',
         'lora_type' : 'LoRA',
         'custom_dataset' : None,
-        'clip_skip_list' : [1,2],
-        'num_repeats_list' : [10]
     }
     try:
         with open(config_path, 'r') as f:
@@ -108,6 +121,7 @@ def load_tuning_config(config_path:str):
         print("Couldn't load config file, using default configs")
     for keys in tuning_config:
         if keys not in tuning_config_loaded:
+            # check if list exists instead, then skip
             tuning_config_loaded[keys] = tuning_config[keys]
     tuning_config = tuning_config_loaded
     return tuning_config
@@ -132,66 +146,70 @@ if __name__ == '__main__':
     parser.add_argument('--model_file', type=str, default='') #optional
     parser.add_argument('--port', type=str, default='') #optional
     parser.add_argument('--cuda_device', type=str, default='') #optional
+    parser.add_argument('--debug', action='store_true', default=False) #optional
 
     # python automate-train.py --project_name_base BASE --default_config_path default_config.json --tuning_config_path tuning_config.json 
     # --train_id_start 0 --images_folder '' --model_file '' --port '' --cuda_device ''
 
     args = parser.parse_args()
-    # model_file
+    debug = args.debug
     project_name_base = args.project_name_base
+    model_name = args.model_file
+    images_folder = args.images_folder
+    cuda_device = args.cuda_device
+
     train_id = args.train_id_start
     default_configs = load_default_config(args.default_config_path)
     tuning_config = load_tuning_config(args.tuning_config_path)
 
     # warn if custom_dataset is not None
     if tuning_config['custom_dataset'] is not None:
-        ignored_options_name = ['images_folder', 'num_repeats','shuffle_caption' 'keep_tokens', 'resolution']
-        print("custom_dataset is not None, dataset options {ignored_options_name} will be ignored")
+        ignored_options_name = ['images_folder', 'num_repeats','shuffle_caption', 'keep_tokens', 'resolution']
+        print(f"custom_dataset is not None, dataset options {ignored_options_name} will be ignored")
 
-    unet_lr_list = tuning_config['unet_lr_list'] #[1e-5, 1e-4, 2e-4, 3e-4] #1e-4
-    text_encoder_lr_list = tuning_config['text_encoder_lr_list'] #[1e-5, 2e-5, 3e-5, 4e-5] #2e-5
-    network_alpha_list = tuning_config['network_alpha_list'] #[2,4,8] #8
-    network_dim_list = tuning_config['network_dim_list'] #[16] #16
-    seed_list = tuning_config['seed_list'] if 'seed_list' in tuning_config else [42] #[42]
-    clip_skip_list = tuning_config['clip_skip_list'] if 'clip_skip_list' in tuning_config else [2] #[2]
-    num_repeats_list = tuning_config['num_repeats_list'] if 'num_repeats_list' in tuning_config else [10] #[10]
+    list_arguments_name = {}
+    for arguments, values in tuning_config.items():
+        if arguments.endswith('_list'):
+            list_arguments_name[arguments.replace('_list', '')] = values
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
-
-    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip , num_repeats in \
-        product(unet_lr_list,
-        text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list, clip_skip_list,
-        num_repeats_list
-        ):
-        if text_encoder_lr > unet_lr:
-            print("text_encoder_lr > unet_lr, skipping")
+        del tuning_config['PORT']
+    keys_to_remove = {'CUDA_VISIBLE_DEVICES', 'PORT'}
+    for args in product(*list_arguments_name.values()):
+        list_arguments = dict(zip(list_arguments_name.keys(), args))
+        temp_tuning_config = generate_tuning_config(tuning_config, **list_arguments)
+        # check validity
+        if temp_tuning_config['network_alpha'] > temp_tuning_config['network_dim']:
             continue
-        config = generate_config(project_name_base=project_name_base,unet_lr=unet_lr, 
-                                text_encoder_lr=text_encoder_lr, network_alpha=network_alpha,
-                                images_folder=args.images_folder if args.images_folder else "",
-                                model_file=args.model_file if args.model_file else "",
-                                cuda_device=tuning_config['CUDA_VISIBLE_DEVICES'] if args.cuda_device == '' else args.cuda_device,
-                                port=tuning_config['port'] if args.port == '' else args.port,
-                                sample_opt=tuning_config['sample_opt'],
-                                sample_num=tuning_config['sample_num'],
-                                seed=seed,
-                                prompt_path=tuning_config['prompt_path'],
-                                keep_tokens=tuning_config['keep_tokens'],
-                                resolution=tuning_config['resolution'],
-                                lr_scheduler=tuning_config['lr_scheduler'],
-                                lora_type=tuning_config['lora_type'],
-                                custom_dataset=tuning_config['custom_dataset'] if tuning_config['custom_dataset'] else None,
-                                network_dim = network_dim,
-                                clip_skip = clip_skip,
-                                num_repeats = num_repeats
+        if temp_tuning_config['unet_lr'] < temp_tuning_config['text_encoder_lr']:
+            continue
+        if temp_tuning_config.get('conv_alpha', 1) > temp_tuning_config.get('conv_dim', 8):
+            continue
+        # this arguments will be used for overriding default configs
+    
+        config = generate_config(**temp_tuning_config,
                                 )
-        #print(config)
+        # override args
+        config['project_name_base'] = project_name_base
+        if model_name:
+            config['model_file'] = model_name
+        if images_folder:
+            config['images_folder'] = images_folder
+        config['cuda_device'] = temp_tuning_config['cuda_device'] if cuda_device == '' else cuda_device
+        for keys in keys_to_remove:
+            if keys in config:
+                del config[keys]
         print(f"running _{train_id}")
         command_inputs = [execute_path, "trainer.py"]
         for arguments, values in config.items():
+            if values is None or values == '':
+                continue
             command_inputs.append(f"--{arguments}")
             command_inputs.append(str(values))
         command_inputs.append(f"--custom_suffix")
         command_inputs.append(str(train_id))
-        subprocess.check_call(command_inputs)
+        if debug:
+            print(' '.join(command_inputs) + '\n')
+        else:
+            subprocess.check_call(command_inputs)
         train_id += 1

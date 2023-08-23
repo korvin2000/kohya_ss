@@ -2074,14 +2074,10 @@ def load_arbitrary_dataset(args, tokenizer) -> MinimalDataset:
     return train_dataset_group
 
 
-def load_image(image_path, in_channels=3):
+def load_image(image_path):
     image = Image.open(image_path)
-    if in_channels == 4:
-        if not image.mode == "RGBA":
-            image = image.convert("RGBA")
-    else:
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
+    if not image.mode == "RGB":
+        image = image.convert("RGB")
     img = np.array(image, np.uint8)
     return img
 
@@ -2120,7 +2116,7 @@ def trim_and_resize_if_required(
 
 
 def cache_batch_latents(
-    vae: AutoencoderKL, cache_to_disk: bool, image_infos: List[ImageInfo], flip_aug: bool, random_crop: bool, in_channels: int=3
+    vae: AutoencoderKL, cache_to_disk: bool, image_infos: List[ImageInfo], flip_aug: bool, random_crop: bool
 ) -> None:
     r"""
     requires image_infos to have: absolute_path, bucket_reso, resized_size, latents_npz
@@ -2133,7 +2129,7 @@ def cache_batch_latents(
     """
     images = []
     for info in image_infos:
-        image = load_image(info.absolute_path, in_channels) if info.image is None else np.array(info.image, np.uint8)
+        image = load_image(info.absolute_path) if info.image is None else np.array(info.image, np.uint8)
         # TODO 画像のメタデータが壊れていて、メタデータから割り当てたbucketと実際の画像サイズが一致しない場合があるのでチェック追加要
         print("info.image is None", info.image is None)
         print(f"image.shape: {image.shape}")
@@ -4573,27 +4569,6 @@ class ImageLoadingDataset(torch.utils.data.Dataset):
 
         return (tensor_pil, img_path)
 
-class TransparentImageLoadingDataset(torch.utils.data.Dataset):
-    def __init__(self, image_paths):
-        self.images = image_paths
-
-    def __len__(self):
-        return len(self.images)
-
-    def __getitem__(self, idx):
-        img_path = self.images[idx]
-
-        try:
-            image = Image.open(img_path)
-            if image.mode != "RGBA":
-                image = image.convert("RGBA")
-            # convert to tensor temporarily so dataloader will accept it
-            tensor_pil = transforms.functional.pil_to_tensor(image)
-        except Exception as e:
-            print(f"Could not load image path / 画像を読み込めません: {img_path}, error: {e}")
-            return None
-
-        return (tensor_pil, img_path)
 
 # endregion
 

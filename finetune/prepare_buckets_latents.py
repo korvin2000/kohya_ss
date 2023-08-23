@@ -92,18 +92,15 @@ def main(args):
     # 画像をひとつずつ適切なbucketに割り当てながらlatentを計算する
     img_ar_errors = []
 
-    def process_batch(is_last, in_channels):
+    def process_batch(is_last):
         for bucket in bucket_manager.buckets:
             if (is_last and len(bucket) > 0) or len(bucket) >= args.batch_size:
-                train_util.cache_batch_latents(vae, True, bucket, args.flip_aug, False,in_channels=in_channels)
+                train_util.cache_batch_latents(vae, True, bucket, args.flip_aug, False)
                 bucket.clear()
 
     # 読み込みの高速化のためにDataLoaderを使うオプション
     if args.max_data_loader_n_workers is not None:
-        if args.in_channels == 4:
-            dataset = train_util.TransparentImageLoadingDataset(image_paths)
-        else:
-            dataset = train_util.ImageLoadingDataset(image_paths)
+        dataset = train_util.ImageLoadingDataset(image_paths)
         data = torch.utils.data.DataLoader(
             dataset,
             batch_size=1,
@@ -177,10 +174,10 @@ def main(args):
         bucket_manager.add_image(reso, image_info)
 
         # バッチを推論するか判定して推論する
-        process_batch(False, args.in_channels)
+        process_batch(False)
 
     # 残りを処理する
-    process_batch(True, args.in_channels)
+    process_batch(True)
 
     bucket_manager.sort()
     for i, reso in enumerate(bucket_manager.resos):

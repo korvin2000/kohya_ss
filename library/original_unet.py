@@ -1320,6 +1320,8 @@ class UNet2DConditionModel(nn.Module):
         upcast_attention: bool = False,
         **kwargs,
     ):
+        print("attention_head_dim", attention_head_dim)
+        print("len attention_head_dim", len(attention_head_dim))
         super().__init__()
         assert sample_size is not None, "sample_size must be specified"
         print(
@@ -1347,6 +1349,8 @@ class UNet2DConditionModel(nn.Module):
         self.mid_block = None
         self.up_blocks = nn.ModuleList([])
 
+        print("attention_head_dim", attention_head_dim)
+        print("len attention_head_dim", len(attention_head_dim))
         if isinstance(attention_head_dim, int):
             attention_head_dim = (attention_head_dim,) * 4
 

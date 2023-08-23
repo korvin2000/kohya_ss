@@ -98,7 +98,8 @@ def load_tuning_config(config_path:str):
         'lr_scheduler' : 'cosine_with_restarts',
         'lora_type' : 'LoRA',
         'custom_dataset' : None,
-        'clip_skip_list' : [1,2]
+        'clip_skip_list' : [1,2],
+        'num_repeats_list' : [10]
     }
     try:
         with open(config_path, 'r') as f:
@@ -142,6 +143,10 @@ if __name__ == '__main__':
     default_configs = load_default_config(args.default_config_path)
     tuning_config = load_tuning_config(args.tuning_config_path)
 
+    # warn if custom_dataset is not None
+    if tuning_config['custom_dataset'] is not None:
+        ignored_options_name = ['images_folder', 'num_repeats','shuffle_caption' 'keep_tokens', 'resolution']
+        print("custom_dataset is not None, dataset options {ignored_options_name} will be ignored")
 
     unet_lr_list = tuning_config['unet_lr_list'] #[1e-5, 1e-4, 2e-4, 3e-4] #1e-4
     text_encoder_lr_list = tuning_config['text_encoder_lr_list'] #[1e-5, 2e-5, 3e-5, 4e-5] #2e-5
@@ -149,11 +154,15 @@ if __name__ == '__main__':
     network_dim_list = tuning_config['network_dim_list'] #[16] #16
     seed_list = tuning_config['seed_list'] if 'seed_list' in tuning_config else [42] #[42]
     clip_skip_list = tuning_config['clip_skip_list'] if 'clip_skip_list' in tuning_config else [2] #[2]
+    num_repeats_list = tuning_config['num_repeats_list'] if 'num_repeats_list' in tuning_config else [10] #[10]
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
 
-    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip in product(unet_lr_list,
-        text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list, clip_skip_list):
+    for unet_lr, text_encoder_lr, network_alpha, network_dim, seed, clip_skip , num_repeats in \
+        product(unet_lr_list,
+        text_encoder_lr_list, network_alpha_list, network_dim_list, seed_list, clip_skip_list,
+        num_repeats_list
+        ):
         if text_encoder_lr > unet_lr:
             print("text_encoder_lr > unet_lr, skipping")
             continue
@@ -174,6 +183,7 @@ if __name__ == '__main__':
                                 custom_dataset=tuning_config['custom_dataset'] if tuning_config['custom_dataset'] else None,
                                 network_dim = network_dim,
                                 clip_skip = clip_skip,
+                                num_repeats = num_repeats
                                 )
         #print(config)
         print(f"running _{train_id}")

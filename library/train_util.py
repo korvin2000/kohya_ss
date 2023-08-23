@@ -3750,7 +3750,7 @@ def _load_target_model(args: argparse.Namespace, weight_dtype, device="cpu", une
         # Diffusers U-Net to original U-Net
         # TODO *.ckpt/*.safetensorsのv2と同じ形式にここで変換すると良さそう
         # print(f"unet config: {unet.config}")
-        print(f"unet.config.attention_head_dim: {unet.config.attention_head_dim}")
+        
         original_unet = UNet2DConditionModel(
             unet.config.sample_size,
             unet.config.attention_head_dim,

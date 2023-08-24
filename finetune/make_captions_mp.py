@@ -54,7 +54,6 @@ class ImageLoadingTransformDataset(torch.utils.data.Dataset):
                 np_image = np.array(image)
                 num_zeros = sum(sum(sum(np_image[:, :, :3] == 0)))
                 if num_zeros == w * h * 3:
-                    print(f"image is all transparent / 画像がすべて透明です: {img_path}")
                     # set rgb to (255,255,255) when alpha values is 0
                     np_image = np_image.reshape(-1, 4)
                     np_image[np_image[:, 3] == 0] = [255, 255, 255, 0]
@@ -181,10 +180,26 @@ def _main(image_paths, args):
             if img_tensor is None:
                 try:
                     raw_image = Image.open(image_path)
-                    if raw_image.mode != "RGB":
-                        raw_image = raw_image.convert("RGB")
+
+                    if args.check_alpha:
+                        image = raw_image.convert("RGBA")
+                        w, h = image.size
+                        np_image = np.array(image)
+                        num_zeros = sum(sum(sum(np_image[:, :, :3] == 0)))
+                        if num_zeros == w * h * 3:
+                            # set rgb to (255,255,255) when alpha values is 0
+                            np_image = np_image.reshape(-1, 4)
+                            np_image[np_image[:, 3] == 0] = [255, 255, 255, 0]
+                            # remove alpha channel
+                            np_image = np_image[:, :3]
+                            image = Image.fromarray(np_image.reshape(h, w, 3))
+                        else:
+                            image = image.convert("RGB")
+                    else:
+                        image = raw_image.convert("RGB")
+
                     if args.model_name:
-                        img_tensor = raw_image
+                        img_tensor = image
                     else:
                         img_tensor = IMAGE_TRANSFORM(raw_image)
                 except Exception as e:

@@ -421,9 +421,9 @@ def add_gor_args(parser: argparse.ArgumentParser)-> List[str]:
     parser.add_argument("--gor_num_groups", type=int, default=32, help="number of groups for group orthogonality regularization")
     parser.add_argument("--gor_regularization_type", type=str, default=None, help="type of group orthogonality regularization, 'inter' or 'intra'")
     parser.add_argument("--gor_name_to_regularize", type=str, default='up_blocks.*_lora\.up', help="name of the layer to regularize, e.g. 'up_blocks.*_lora\.up'")
-    parser.add_argument("--gor_regularize_fc_layers", type=bool, default=True, help="whether to regularize fully connected layers")
+    parser.add_argument("--gor_regularize_fc_layers", type=str, default="True", help="whether to regularize fully connected layers")
     parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
-    parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
+    parser.add_argument("--gor_regularization", type=str, default="False", help="whether to enable group orthogonality regularization")
     return ['gor_num_groups', 'gor_regularization_type', 'gor_name_to_regularize', 'gor_regularize_fc_layers', 'gor_ortho_decay', 'gor_regularization']
 
 

@@ -98,10 +98,10 @@ def _load_target_model(name_or_path: str, vae_path: Optional[str], model_version
         del pipe
 
         # Diffusers U-Net to original U-Net
-        state_dict = sdxl_model_util.convert_diffusers_unet_state_dict_to_sdxl(unet.state_dict())
-        with init_empty_weights():
-            unet = sdxl_original_unet.SdxlUNet2DConditionModel()  # overwrite unet
-        sdxl_model_util._load_state_dict_on_device(unet, state_dict, device=device)
+        # state_dict = sdxl_model_util.convert_diffusers_unet_state_dict_to_sdxl(unet.state_dict())
+        # with init_empty_weights():
+        #     unet = sdxl_original_unet.SdxlUNet2DConditionModel()  # overwrite unet
+        # sdxl_model_util._load_state_dict_on_device(unet, state_dict, device=device)
         print("U-Net converted to original U-Net")
 
         logit_scale = None

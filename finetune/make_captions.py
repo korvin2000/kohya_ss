@@ -15,6 +15,8 @@ from torchvision.transforms.functional import InterpolationMode
 sys.path.append(os.path.dirname(__file__))
 from blip.blip import blip_decoder
 import library.train_util as train_util
+from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers import Blip2Processor, Blip2ForConditionalGeneration
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -33,8 +35,9 @@ IMAGE_TRANSFORM = transforms.Compose(
 
 # 共通化したいが微妙に処理が異なる……
 class ImageLoadingTransformDataset(torch.utils.data.Dataset):
-    def __init__(self, image_paths):
+    def __init__(self, image_paths, args):
         self.images = image_paths
+        self.args = args
 
     def __len__(self):
         return len(self.images)
@@ -43,9 +46,28 @@ class ImageLoadingTransformDataset(torch.utils.data.Dataset):
         img_path = self.images[idx]
 
         try:
-            image = Image.open(img_path).convert("RGB")
+            if self.args.check_alpha:
+                image = Image.open(img_path).convert("RGBA")
+                w, h = image.size
+                np_image = np.array(image)
+                num_zeros = sum(sum(sum(np_image[:,:,:3] == 0)))
+                if num_zeros == w * h * 3:
+                    print(f"image is all transparent / 画像がすべて透明です: {img_path}")
+                    # set rgb to (255,255,255) when alpha values is 0
+                    np_image = np_image.reshape(-1, 4)
+                    np_image[np_image[:, 3] == 0] = [255, 255, 255, 0]
+                    # remove alpha channel
+                    np_image = np_image[:, :3]
+                    image = Image.fromarray(np_image.reshape(h, w, 3))
+                else:
+                    image = image.convert("RGB")
+            else:
+                image = Image.open(img_path).convert("RGB")
             # convert to tensor temporarily so dataloader will accept it
-            tensor = IMAGE_TRANSFORM(image)
+            if self.args.model_name:
+                tensor = image
+            else:
+                tensor = IMAGE_TRANSFORM(image)
         except Exception as e:
             print(f"Could not load image path / 画像を読み込めません: {img_path}, error: {e}")
             return None
@@ -82,25 +104,43 @@ def main(args):
     image_paths = train_util.glob_images_pathlib(train_data_dir_path, args.recursive)
     print(f"found {len(image_paths)} images.")
 
-    print(f"loading BLIP caption: {args.caption_weights}")
-    model = blip_decoder(pretrained=args.caption_weights, image_size=IMAGE_SIZE, vit="large", med_config="./blip/med_config.json")
+    if args.model_name:
+        if "blip2" in args.model_name:
+            processor = Blip2Processor.from_pretrained(args.model_name)
+            model = Blip2ForConditionalGeneration.from_pretrained(args.model_name,
+                                                                  torch_dtype=torch.float16, device_map="auto")
+        else:
+            print(f"loading BLIP model: {args.model_name}")
+            processor = BlipProcessor.from_pretrained(args.model_name)#"Salesforce/blip-image-captioning-large")
+            model = BlipForConditionalGeneration.from_pretrained(args.model_name,
+                                                             torch_dtype=torch.float16).to("cuda")
+    else:
+        print(f"loading BLIP caption: {args.caption_weights}")
+        model = blip_decoder(pretrained=args.caption_weights, image_size=IMAGE_SIZE, vit="large", med_config="./blip/med_config.json")
     model.eval()
     model = model.to(DEVICE)
     print("BLIP loaded")
 
     # captioningする
     def run_batch(path_imgs):
-        imgs = torch.stack([im for _, im in path_imgs]).to(DEVICE)
+        if args.model_name:
+            imgs = processor([im for _, im in path_imgs], return_tensors="pt").to("cuda", torch.float16)
+        else:
+            imgs = torch.stack([im for _, im in path_imgs]).to(DEVICE)
 
         with torch.no_grad():
-            if args.beam_search:
-                captions = model.generate(
-                    imgs, sample=False, num_beams=args.num_beams, max_length=args.max_length, min_length=args.min_length
-                )
+            if args.model_name:
+                out = model.generate(**imgs)
+                captions = [processor.decode(out_item, skip_special_tokens=True) for out_item in out]
             else:
-                captions = model.generate(
-                    imgs, sample=True, top_p=args.top_p, max_length=args.max_length, min_length=args.min_length
-                )
+                if args.beam_search:
+                    captions = model.generate(
+                        imgs, sample=False, num_beams=args.num_beams, max_length=args.max_length, min_length=args.min_length
+                    )
+                else:
+                    captions = model.generate(
+                        imgs, sample=True, top_p=args.top_p, max_length=args.max_length, min_length=args.min_length
+                    )
 
         for (image_path, _), caption in zip(path_imgs, captions):
             with open(os.path.splitext(image_path)[0] + args.caption_extension, "wt", encoding="utf-8") as f:
@@ -110,7 +150,7 @@ def main(args):
 
     # 読み込みの高速化のためにDataLoaderを使うオプション
     if args.max_data_loader_n_workers is not None:
-        dataset = ImageLoadingTransformDataset(image_paths)
+        dataset = ImageLoadingTransformDataset(image_paths, args)
         data = torch.utils.data.DataLoader(
             dataset,
             batch_size=args.batch_size,
@@ -134,7 +174,10 @@ def main(args):
                     raw_image = Image.open(image_path)
                     if raw_image.mode != "RGB":
                         raw_image = raw_image.convert("RGB")
-                    img_tensor = IMAGE_TRANSFORM(raw_image)
+                    if args.model_name:
+                        img_tensor = raw_image
+                    else:
+                        img_tensor = IMAGE_TRANSFORM(raw_image)
                 except Exception as e:
                     print(f"Could not load image path / 画像を読み込めません: {image_path}, error: {e}")
                     continue
@@ -152,6 +195,11 @@ def main(args):
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("train_data_dir", type=str, help="directory for train images / 学習画像データのディレクトリ")
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default=None,
+    )
     parser.add_argument(
         "--caption_weights",
         type=str,
@@ -183,6 +231,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min_length", type=int, default=5, help="min length of caption / captionの最小長")
     parser.add_argument("--seed", default=42, type=int, help="seed for reproducibility / 再現性を確保するための乱数seed")
     parser.add_argument("--debug", action="store_true", help="debug mode")
+    parser.add_argument("--check_alpha", action="store_true", help="debug mode")
     parser.add_argument("--recursive", action="store_true", help="search for images in subfolders recursively / サブフォルダを再帰的に検索する")
 
     return parser

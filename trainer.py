@@ -296,7 +296,11 @@ def main():
   # call .\venv\Scripts\activate.bat
   # set PATH=%PATH%;%~dp0venv\Lib\site-packages\torch\lib
     # windows, required user venv..
-  subprocess.check_call(["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file],
+  command_list = ["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file]
+  with open(os.path.join(log_folder, "accelerate_launch_commands_log.txt"), "a") as f:
+    f.write(" ".join(command_list))
+    
+  subprocess.check_call(command_list,
                         shell=True if os.name == 'nt' else False)
   # move model to output folder
 

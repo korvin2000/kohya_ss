@@ -3,7 +3,7 @@ import argparse
 import random
 import re
 from typing import List, Optional, Union
-
+from .group_orthogonalization_normalization import calc_group_reg_loss_lora
 
 def prepare_scheduler_for_custom_training(noise_scheduler, device):
     if hasattr(noise_scheduler, "all_snr"):
@@ -63,6 +63,21 @@ def apply_snr_weight(loss, timesteps, noise_scheduler, gamma):
     snr_weight = torch.minimum(gamma_over_snr, torch.ones_like(gamma_over_snr)).float().to(loss.device)  # from paper
     loss = loss * snr_weight
     return loss
+
+def apply_gor_loss(loss, lora_modules:List[torch.nn.Module], num_groups:int, regularization_type:str, 
+                   name_to_regularize:str, regularize_fc_layers:bool = True, ortho_decay:float = 0.99):
+    """
+    Calculate the the group regularization loss.
+    ### Author : YoavKrutz@Github
+    ### reference https://github.com/YoavKurtz/GOR/blob/master/weight_regularization.py
+    ### arxiv : https://arxiv.org/abs/2306.10001
+    """
+    reg_loss = calc_group_reg_loss_lora(
+        lora_modules, num_groups=num_groups, reg_type=regularization_type, names_to_reg=name_to_regularize,
+        regularize_fc_layers=regularize_fc_layers
+    )
+    return loss + ortho_decay * reg_loss
+
 
 
 def scale_v_prediction_loss_like_noise_prediction(loss, timesteps, noise_scheduler):

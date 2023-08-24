@@ -166,6 +166,7 @@ def _main(image_paths, args):
             num_workers=args.max_data_loader_n_workers,
             collate_fn=collate_fn_remove_corrupted,
             drop_last=False,
+            multiprocessing_context="spawn",
         )
     else:
         data = [[(None, ip)] for ip in image_paths]

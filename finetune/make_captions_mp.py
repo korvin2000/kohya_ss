@@ -1,4 +1,6 @@
 import argparse
+import functools
+from multiprocessing import Pool
 import glob
 import os
 import json
@@ -12,6 +14,7 @@ import numpy as np
 import torch
 from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
+
 sys.path.append(os.path.dirname(__file__))
 from blip.blip import blip_decoder
 import library.train_util as train_util
@@ -19,7 +22,6 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 IMAGE_SIZE = 384
 
@@ -50,7 +52,7 @@ class ImageLoadingTransformDataset(torch.utils.data.Dataset):
                 image = Image.open(img_path).convert("RGBA")
                 w, h = image.size
                 np_image = np.array(image)
-                num_zeros = sum(sum(sum(np_image[:,:,:3] == 0)))
+                num_zeros = sum(sum(sum(np_image[:, :, :3] == 0)))
                 if num_zeros == w * h * 3:
                     print(f"image is all transparent / 画像がすべて透明です: {img_path}")
                     # set rgb to (255,255,255) when alpha values is 0
@@ -85,24 +87,24 @@ def collate_fn_remove_corrupted(batch):
     return batch
 
 
-def main(args):
+def _main(image_paths, args):
     # fix the seed for reproducibility
     seed = args.seed  # + utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
-    if not os.path.exists("blip"):
-        args.train_data_dir = os.path.abspath(args.train_data_dir)  # convert to absolute path
-
-        cwd = os.getcwd()
-        print("Current Working Directory is: ", cwd)
-        os.chdir("finetune")
-
-    print(f"load images from {args.train_data_dir}")
-    train_data_dir_path = Path(args.train_data_dir)
-    image_paths = train_util.glob_images_pathlib(train_data_dir_path, args.recursive)
-    print(f"found {len(image_paths)} images.")
+    # if not os.path.exists("blip"):
+    #     args.train_data_dir = os.path.abspath(args.train_data_dir)  # convert to absolute path
+    #
+    #     cwd = os.getcwd()
+    #     print("Current Working Directory is: ", cwd)
+    #     os.chdir("finetune")
+    #
+    # print(f"load images from {args.train_data_dir}")
+    # train_data_dir_path = Path(args.train_data_dir)
+    # image_paths = train_util.glob_images_pathlib(train_data_dir_path, args.recursive)
+    # print(f"found {len(image_paths)} images.")
 
     if args.model_name:
         if "blip2" in args.model_name:
@@ -111,12 +113,13 @@ def main(args):
                                                                   torch_dtype=torch.float16, device_map="auto")
         else:
             print(f"loading BLIP model: {args.model_name}")
-            processor = BlipProcessor.from_pretrained(args.model_name)#"Salesforce/blip-image-captioning-large")
+            processor = BlipProcessor.from_pretrained(args.model_name)  # "Salesforce/blip-image-captioning-large")
             model = BlipForConditionalGeneration.from_pretrained(args.model_name,
-                                                             torch_dtype=torch.float16).to("cuda")
+                                                                 torch_dtype=torch.float16).to("cuda")
     else:
         print(f"loading BLIP caption: {args.caption_weights}")
-        model = blip_decoder(pretrained=args.caption_weights, image_size=IMAGE_SIZE, vit="large", med_config="./blip/med_config.json")
+        model = blip_decoder(pretrained=args.caption_weights, image_size=IMAGE_SIZE, vit="large",
+                             med_config="./blip/med_config.json")
     model.eval()
     model = model.to(DEVICE)
     print("BLIP loaded")
@@ -125,7 +128,8 @@ def main(args):
     def run_batch(path_imgs):
         if args.model_name:
             if args.prompt:
-                imgs = processor([im for _, im in path_imgs], [args.prompt] * len(path_imgs), return_tensors="pt").to("cuda", torch.float16)
+                imgs = processor([im for _, im in path_imgs], [args.prompt] * len(path_imgs), return_tensors="pt").to(
+                    "cuda", torch.float16)
             else:
                 imgs = processor([im for _, im in path_imgs], return_tensors="pt").to("cuda", torch.float16)
         else:
@@ -138,7 +142,8 @@ def main(args):
             else:
                 if args.beam_search:
                     captions = model.generate(
-                        imgs, sample=False, num_beams=args.num_beams, max_length=args.max_length, min_length=args.min_length
+                        imgs, sample=False, num_beams=args.num_beams, max_length=args.max_length,
+                        min_length=args.min_length
                     )
                 else:
                     captions = model.generate(
@@ -195,6 +200,32 @@ def main(args):
     print("done!")
 
 
+def slice_list(l, num_chunks):
+    chunk_size, remain = divmod(len(l), num_chunks)
+    if remain > 0:
+        div, more_remain = divmod(remain, num_chunks)
+        chunk_size += div
+        if more_remain > 0:
+            chunk_size += 1
+    return [l[i:i + chunk_size] for i in range(0, len(l), chunk_size)]
+
+
+def main(args):
+    print(f"load images from {args.train_data_dir}")
+    train_data_dir_path = Path(args.train_data_dir)
+    image_paths = train_util.glob_images_pathlib(train_data_dir_path, args.recursive)
+    print(f"found {len(image_paths)} images.")
+
+    feed = slice_list(image_paths, args.num_processes)
+
+    with Pool(args.num_processes) as pool:
+        print("start multi processing")
+        # set default argument to download function using partial
+
+        runner = functools.partial(_main, args=args)
+        pool.map(runner, feed)
+
+
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("train_data_dir", type=str, help="directory for train images / 学習画像データのディレクトリ")
@@ -215,28 +246,34 @@ def setup_parser() -> argparse.ArgumentParser:
         default=None,
         help="extension of caption file (for backward compatibility) / 出力されるキャプションファイルの拡張子（スペルミスしていたのを残してあります）",
     )
-    parser.add_argument("--caption_extension", type=str, default=".caption", help="extension of caption file / 出力されるキャプションファイルの拡張子")
+    parser.add_argument("--caption_extension", type=str, default=".caption",
+                        help="extension of caption file / 出力されるキャプションファイルの拡張子")
     parser.add_argument(
         "--beam_search",
         action="store_true",
         help="use beam search (default Nucleus sampling) / beam searchを使う（このオプション未指定時はNucleus sampling）",
     )
     parser.add_argument("--batch_size", type=int, default=1, help="batch size in inference / 推論時のバッチサイズ")
+    parser.add_argument("--num_processes", type=int, default=4, help="batch size in inference / 推論時のバッチサイズ")
     parser.add_argument(
         "--max_data_loader_n_workers",
         type=int,
         default=None,
         help="enable image reading by DataLoader with this number of workers (faster) / DataLoaderによる画像読み込みを有効にしてこのワーカー数を適用する（読み込みを高速化）",
     )
-    parser.add_argument("--num_beams", type=int, default=1, help="num of beams in beam search /beam search時のビーム数（多いと精度が上がるが時間がかかる）")
-    parser.add_argument("--top_p", type=float, default=0.9, help="top_p in Nucleus sampling / Nucleus sampling時のtop_p")
+    parser.add_argument("--num_beams", type=int, default=1,
+                        help="num of beams in beam search /beam search時のビーム数（多いと精度が上がるが時間がかかる）")
+    parser.add_argument("--top_p", type=float, default=0.9,
+                        help="top_p in Nucleus sampling / Nucleus sampling時のtop_p")
     parser.add_argument("--max_length", type=int, default=75, help="max length of caption / captionの最大長")
     parser.add_argument("--min_length", type=int, default=5, help="min length of caption / captionの最小長")
     parser.add_argument("--prompt", type=str, default=None, help=None)
-    parser.add_argument("--seed", default=42, type=int, help="seed for reproducibility / 再現性を確保するための乱数seed")
+    parser.add_argument("--seed", default=42, type=int,
+                        help="seed for reproducibility / 再現性を確保するための乱数seed")
     parser.add_argument("--debug", action="store_true", help="debug mode")
     parser.add_argument("--check_alpha", action="store_true", help="debug mode")
-    parser.add_argument("--recursive", action="store_true", help="search for images in subfolders recursively / サブフォルダを再帰的に検索する")
+    parser.add_argument("--recursive", action="store_true",
+                        help="search for images in subfolders recursively / サブフォルダを再帰的に検索する")
 
     return parser
 

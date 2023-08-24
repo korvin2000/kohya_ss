@@ -53,7 +53,7 @@ def collate_fn_remove_corrupted(batch):
 
 def main(args):
     # GITにバッチサイズが1より大きくても動くようにパッチを当てる: transformers 4.26.0用
-    org_prepare_input_ids_for_generation = GenerationMixin._prepare_input_ids_for_generation
+    org_prepare_input_ids_for_generation = GenerationMixin.prepare_inputs_for_generation
     curr_batch_size = [args.batch_size]  # ループの最後で件数がbatch_size未満になるので入れ替えられるように
 
     # input_idsがバッチサイズと同じ件数である必要がある：バッチサイズはこの関数から参照できないので外から渡す
@@ -64,7 +64,7 @@ def main(args):
             input_ids = input_ids.repeat(curr_batch_size[0], 1)
         return input_ids
 
-    GenerationMixin._prepare_input_ids_for_generation = _prepare_input_ids_for_generation_patch
+    GenerationMixin.prepare_inputs_for_generation = _prepare_input_ids_for_generation_patch
 
     print(f"load images from {args.train_data_dir}")
     train_data_dir_path = Path(args.train_data_dir)

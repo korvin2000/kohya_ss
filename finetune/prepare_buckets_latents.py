@@ -127,8 +127,12 @@ def main(args):
         else:
             try:
                 image = Image.open(image_path)
-                if image.mode != "RGB":
-                    image = image.convert("RGB")
+                if args.in_channels == 4:
+                    if image.mode != "RGBA":
+                        image = image.convert("RGBA")
+                else:
+                    if image.mode != "RGB":
+                        image = image.convert("RGB")
             except Exception as e:
                 print(f"Could not load image path / 画像を読み込めません: {image_path}, error: {e}")
                 continue
@@ -202,6 +206,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument("model_name_or_path", type=str, help="model name or path to encode latents / latentを取得するためのモデル")
     parser.add_argument("--v2", action="store_true", help="not used (for backward compatibility) / 使用されません（互換性のため残してあります）")
     parser.add_argument("--batch_size", type=int, default=1, help="batch size in inference / 推論時のバッチサイズ")
+    parser.add_argument("--in_channels", type=int, default=3, help="num of input image channels")
     parser.add_argument(
         "--max_data_loader_n_workers",
         type=int,

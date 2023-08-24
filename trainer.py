@@ -322,36 +322,17 @@ def get_separated_list(result_list) -> dict:
     down, middle, up = all_list[:12], all_list[12], all_list[13:]
 
     return text_encoder_lr, down, middle, up
-if __name__ == "__main__":
 
-  parser = argparse.ArgumentParser(description='LoRA Trainer')
-
+def add_basic_arguments(parser : argparse.ArgumentParser) -> None:
+  """
+  Adds basic arguments to the parser.
+  """
   parser.add_argument('--cuda_device', type=str, default='4',
                       help='CUDA device number (default: 4)')
   parser.add_argument('--project_name_base', type=str, default='WEBTOON_ALL',
                       help='Base name for the project (default: WEBTOON_ALL)')
   parser.add_argument('--model_file', type=str, default='./model.ckpt',
                       help='Path to the model file (default: ./model.ckpt)')
-  parser.add_argument('--optimizer', type=str, default='AdamW8bit',
-                      help='Optimizer to use (default: AdamW8bit)')
-  parser.add_argument('--network_dim', type=int, default=16,
-                      help='Dimension of the network (default: 16)')
-  parser.add_argument('--network_alpha', type=int, default=8,
-                      help='Alpha value for the network (default: 8)')
-  parser.add_argument('--conv_dim', type=int, default=8,
-                      help='Dimension of the convolutional layers (default: 8)')
-  parser.add_argument('--conv_alpha', type=int, default=1,
-                      help='Alpha value for the convolutional layers (default: 1)')
-  parser.add_argument('--num_repeats', type=int, default=10,
-                      help='Number of repeats (default: 10)')
-  parser.add_argument('--epoch_num', type=int, default=10,
-                      help='Number of epochs (default: 40)')
-  parser.add_argument('--train_batch_size', type=int, default=4,
-                      help='Batch size for training (default: 4)')
-  parser.add_argument('--unet_lr', type=float, default=1e-4,
-                      help='Learning rate for the UNet (default: 1e-4)')
-  parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
-                      help='Learning rate for the text encoder (default: 2e-5)')
   parser.add_argument('--custom_dataset', type=str, default="",
                       help='Custom dataset config path. (default: None)')
   # add image_folder
@@ -368,25 +349,54 @@ if __name__ == "__main__":
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
   # should we use port fallback
   parser.add_argument('--port_fallback', type=bool, default=True, help='Use port fallback (default: False)')
+
+def add_sample_args(parser : argparse.ArgumentParser) -> None:
+  """
+  Adds sample arguments to the parser.
+  """
   # prompt
   parser.add_argument('--prompt_path', type=str, default='', help='Prompt file for the project (default: ""), ex : `character is haibara ai,1girl --s 16 --w 512 --h 768 --d 42`')
   # sample_opt ('epoch', 'step')
   parser.add_argument('--sample_opt', type=str, default='epoch', help='Sample option for the project (default: epoch, can be None)')
   # sample_num
   parser.add_argument('--sample_num', type=int, default=1, help='Sample number for the project (default: 1)')
-  # seed
-  parser.add_argument('--seed', type=int, default=42, help='Seed for the project (default: 42)')
-  # keep tokens
-  parser.add_argument('--keep_tokens', type=int, default=1, help='Keep tokens for the project (default: 1)')
-  # resolution
-  parser.add_argument('--resolution', type=int, default=512, help='Resolution for the project (default: 512)')
-  # lr_scheduler
-  parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
-  # lora type
+
+def add_lora_args(parser : argparse.ArgumentParser) -> None:
+  """
+  Adds lora arguments to the parser.
+  """
+  parser.add_argument('--network_dim', type=int, default=16,
+                      help='Dimension of the network (default: 16)')
+  parser.add_argument('--network_alpha', type=int, default=8,
+                      help='Alpha value for the network (default: 8)')
+  parser.add_argument('--conv_dim', type=int, default=8,
+                      help='Dimension of the convolutional layers (default: 8)')
+  parser.add_argument('--conv_alpha', type=int, default=1,
+                      help='Alpha value for the convolutional layers (default: 1)')
   parser.add_argument('--lora_type', type=str, default='LoRA', help='LoRA type for the project (default: LoRA)')
-  # clip skip
-  parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
-  # max_grad_norm
+
+def add_training_args(parser : argparse.ArgumentParser) -> None:
+  """
+  Adds training arguments to the parser.
+  """
+  parser.add_argument('--optimizer', type=str, default='AdamW8bit',
+                      help='Optimizer to use (default: AdamW8bit)')
+  parser.add_argument('--num_repeats', type=int, default=10,
+                      help='Number of repeats (default: 10)')
+  parser.add_argument('--epoch_num', type=int, default=10,
+                      help='Number of epochs (default: 40)')
+  parser.add_argument('--train_batch_size', type=int, default=4,
+                      help='Batch size for training (default: 4)')
+  parser.add_argument('--unet_lr', type=float, default=1e-4,
+                      help='Learning rate for the UNet (default: 1e-4)')
+  parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
+                      help='Learning rate for the text encoder (default: 2e-5)')
+  parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
+
+def add_regularization_args(parser : argparse.ArgumentParser) -> None:
+  """
+  Adds regularization arguments to the parser.
+  """
   parser.add_argument('--max_grad_norm', type=float, default=0.0, help='Max grad norm for the project (default: 0.0)')
   parser.add_argument('--up_lr_weight', type=str, default="[1,1,1,1,1,1,1,1,1,1,1,1]",
                       help='Lora block weight up for the project (default: [1,1,1,1,1,1,1,1,1,1,1,1])')
@@ -397,8 +407,62 @@ if __name__ == "__main__":
   # add 17-length list input for text/down/middle/up lr weight parsing
   parser.add_argument('--lbw_weights', type=str, default='',
                       help='Optional 16 or 17-length list input for text/down/middle/up lr weight parsing (default: ""), this will disable other block lr arguments')
-  args = parser.parse_args()
 
+def add_gor_args(parser: argparse.ArgumentParser)-> None:
+    parser.add_argument("--gor_num_groups", type=int, default=32, help="number of groups for group orthogonality regularization")
+    parser.add_argument("--gor_regularization_type", type=str, default=None, help="type of group orthogonality regularization, 'inter' or 'intra'")
+    parser.add_argument("--gor_name_to_regularize", type=str, default='up_blocks.*_lora\.up', help="name of the layer to regularize, e.g. 'up_blocks.*_lora\.up'")
+    parser.add_argument("--gor_regularize_fc_layers", type=bool, default=True, help="whether to regularize fully connected layers")
+    parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
+    parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
+    
+
+
+
+def add_augmentation_args(parser : argparse.ArgumentParser) -> None:
+  # face_crop_aug_range [float, float]
+  # flip_aug bool
+  # color_aug bool
+  # random_crop bool
+  """
+  Adds augmentation arguments to the parser.
+  """
+  parser.add_argument('--face_crop_aug_range', type=str, default="[0.0, 0.0]",
+                      help='Face crop augmentation range for the project (default: [0.0, 0.0])')
+  parser.add_argument('--flip_aug', type=bool, default=False,
+                      help='Flip augmentation for the project (default: False)')
+  parser.add_argument('--color_aug', type=bool, default=False,
+                      help='Color augmentation for the project (default: False)')
+  parser.add_argument('--random_crop', type=bool, default=False,
+                      help='Random crop for the project (default: False)')
+
+def add_extra_args(parser : argparse.ArgumentParser) -> None:
+  """
+  Adds extra arguments to the parser.
+  """
+  # seed
+  parser.add_argument('--seed', type=int, default=42, help='Seed for the project (default: 42)')
+  # keep tokens
+  parser.add_argument('--keep_tokens', type=int, default=1, help='Keep tokens for the project (default: 1)')
+  # resolution
+  parser.add_argument('--resolution', type=int, default=512, help='Resolution for the project (default: 512)')
+  # clip skip
+  parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
+
+  
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description='LoRA Trainer')
+  add_basic_arguments(parser)
+  add_sample_args(parser)
+  add_lora_args(parser)
+  add_training_args(parser)
+  add_regularization_args(parser)
+  add_augmentation_args(parser)
+  add_gor_args(parser) # group orthogonality regularization
+  add_extra_args(parser) # seed, keep_tokens, resolution, clip_skip 
+  # keep tokens should be used only if first tags(comma separated) are properly tagged and set up in dataset.
+
+  args = parser.parse_args()
   try:
     down_lr_weight = literal_eval(args.down_lr_weight)
     up_lr_weight = literal_eval(args.up_lr_weight)
@@ -415,7 +479,7 @@ if __name__ == "__main__":
   else:
     lbw_text_encoder_lr_mult = 1
   
-  # TODO : separate validation
+  # TODO : separate validation, please clean up this mess
   os.environ["CUDA_VISIBLE_DEVICES"] = str(args.cuda_device)
   if args.target_path != '':
     print("Target path will be used as "+args.target_path)

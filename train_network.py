@@ -718,7 +718,7 @@ class NetworkTrainer:
             if os.path.exists(old_ckpt_file):
                 accelerator.print(f"removing old checkpoint: {old_ckpt_file}")
                 os.remove(old_ckpt_file)
-
+        print(unet.named_modules().keys())
         # training loop
         for epoch in range(num_train_epochs):
             accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
@@ -910,7 +910,7 @@ def add_gor_args(parser: argparse.ArgumentParser)-> None:
     parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
     # whether to enable gor_regularization
     parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
-    
+
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 

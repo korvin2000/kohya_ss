@@ -201,7 +201,7 @@ def _main(image_paths, args):
                     if args.model_name:
                         img_tensor = image
                     else:
-                        img_tensor = IMAGE_TRANSFORM(raw_image)
+                        img_tensor = IMAGE_TRANSFORM(image)
                 except Exception as e:
                     import traceback
                     traceback.print_exc()

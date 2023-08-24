@@ -33,6 +33,7 @@ from library.custom_train_functions import (
     prepare_scheduler_for_custom_training,
     scale_v_prediction_loss_like_noise_prediction,
     add_v_prediction_like_loss,
+    apply_gor_loss
 )
 
 
@@ -792,7 +793,9 @@ class NetworkTrainer:
                         loss = scale_v_prediction_loss_like_noise_prediction(loss, timesteps, noise_scheduler)
                     if args.v_pred_like_loss:
                         loss = add_v_prediction_like_loss(loss, timesteps, noise_scheduler, args.v_pred_like_loss)
-
+                    if args.gor_regularization: # required args : gor_num_groups : int, gor_regularization_type: str, gor_name_to_regularize: str, gor_regularize_fc_layers: bool, gor_ortho_decay: float
+                        loss = apply_gor_loss(loss, unet, args.gor_num_groups, args.gor_regularization_type, args.gor_name_to_regularize,
+                            args.gor_regularize_fc_layers, args.gor_ortho_decay)
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
 
                     accelerator.backward(loss)
@@ -897,7 +900,17 @@ class NetworkTrainer:
 
             print("model saved.")
 
-
+def add_gor_args(parser: argparse.ArgumentParser)-> None:
+    # required args : gor_num_groups : int, gor_regularization_type: str, gor_name_to_regularize: str, gor_regularize_fc_layers: bool, gor_ortho_decay: float
+    # num_groups 32, ortho_decay 1e-6, str_filters 'up_blocks.*_lora\.up', reg_type 'inter' or 'intra', regularize_fc_layers : True
+    parser.add_argument("--gor_num_groups", type=int, default=32, help="number of groups for group orthogonality regularization")
+    parser.add_argument("--gor_regularization_type", type=str, default=None, help="type of group orthogonality regularization, 'inter' or 'intra'")
+    parser.add_argument("--gor_name_to_regularize", type=str, default='up_blocks.*_lora\.up', help="name of the layer to regularize, e.g. 'up_blocks.*_lora\.up'")
+    parser.add_argument("--gor_regularize_fc_layers", type=bool, default=True, help="whether to regularize fully connected layers")
+    parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
+    # whether to enable gor_regularization
+    parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
+    
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
@@ -977,6 +990,8 @@ def setup_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="do not use fp16/bf16 VAE in mixed precision (use float VAE) / mixed precisionでも fp16/bf16 VAEを使わずfloat VAEを使う",
     )
+    add_gor_args(parser)
+
     return parser
 
 

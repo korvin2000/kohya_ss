@@ -203,8 +203,10 @@ def _main(image_paths, args):
                     else:
                         img_tensor = IMAGE_TRANSFORM(raw_image)
                 except Exception as e:
+                    import traceback
+                    traceback.print_exc()
                     print(f"Could not load image path / 画像を読み込めません: {image_path}, error: {e}")
-                    continue
+                    break
 
             b_imgs.append((image_path, img_tensor))
             if len(b_imgs) >= args.batch_size:

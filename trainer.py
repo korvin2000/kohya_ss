@@ -438,11 +438,11 @@ def add_augmentation_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   parser.add_argument('--face_crop_aug_range', type=str, default="0.0,0.0",
                       help='Face crop augmentation range for the project (default: 0.0, 0.0)')
-  parser.add_argument('--flip_aug', type=bool, default=False,
+  parser.add_argument('--flip_aug', type=str, default=False,
                       help='Flip augmentation for the project (default: False)')
-  parser.add_argument('--color_aug', type=bool, default=False,
+  parser.add_argument('--color_aug', type=str, default=False,
                       help='Color augmentation for the project (default: False)')
-  parser.add_argument('--random_crop', type=bool, default=False,
+  parser.add_argument('--random_crop', type=str, default=False,
                       help='Random crop for the project (default: False)')
   return ['face_crop_aug_range', 'flip_aug', 'color_aug', 'random_crop']
 
@@ -459,6 +459,18 @@ def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   # clip skip
   parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
   return []
+
+def fix_boolean_args(argument_dict : dict) -> dict:
+  """
+  Fixes boolean arguments in the argument dict.
+  """
+  for key, value in argument_dict.items():
+    if isinstance(value, str):
+      if value.lower() == 'true':
+        argument_dict[key] = True
+      elif value.lower() == 'false':
+        argument_dict[key] = False
+  return argument_dict
   
 if __name__ == "__main__":
   extra_args = []
@@ -478,6 +490,8 @@ if __name__ == "__main__":
   extra_args_dict = {
     k : getattr(args, k) for k in extra_args
   }
+  extra_args_dict = fix_boolean_args(extra_args_dict) # fix boolean arguments
+  
   print("Extra args dict : ", extra_args_dict)
   
   try:

@@ -82,8 +82,18 @@ def load_default_config(config_path:str):
     try:
         with open(config_path, 'r') as f:
             default_configs_loaded = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        print("Couldn't load config file at {}, using default configs".format(config_path))
+    except (FileNotFoundError):
+        print(f"Couldn't load config file at {config_path}")
+        if config_path != '':
+            raise FileNotFoundError(f"Couldn't load config file at {config_path}")
+        else:
+            default_configs_loaded = {}
+    except json.JSONDecodeError:
+        print(f"Malformed json file at {config_path}")
+        if config_path != '':
+            raise json.JSONDecodeError(f"Malformed json file at {config_path}")
+        else:
+            default_configs_loaded = {}
     for keys in default_configs:
         if keys not in default_configs_loaded:
             default_configs_loaded[keys] = default_configs[keys]
@@ -141,8 +151,18 @@ def load_tuning_config(config_path:str):
     try:
         with open(config_path, 'r') as f:
             tuning_config_loaded = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        print("Couldn't load config file, using default configs")
+    except FileNotFoundError:
+        print("Couldn't load config file")
+        if config_path != '':
+            raise FileNotFoundError(f"Couldn't load config file at {config_path}")
+        else:
+            tuning_config_loaded = {}
+    except json.JSONDecodeError:
+        print("Malformed json file, using default configs")
+        if config_path != '':
+            raise json.JSONDecodeError(f"Malformed json file at {config_path}")
+        else:
+            tuning_config_loaded = {}
     for keys in tuning_config:
         if keys not in tuning_config_loaded:
             # check if list exists instead, then skip

@@ -259,8 +259,14 @@ if __name__ == '__main__':
         # override args
         config['project_name_base'] = project_name_base if project_name_base != "BASE" else config['project_name_base']
         # check if project_name_base is valid, since it will be used for folder name
-        if not config['project_name_base'].isalnum():
-            raise ValueError("project_name_base must be alphanumeric")
+        project_name_to_check = config['project_name_base']
+        if project_name_to_check == '':
+            raise ValueError("project_name_base cannot be empty")
+        # check invalid characters, {, }, [, ], /, \, :, *, ?, ", <, >, |, .
+        invalid_characters = ['{', '}', '[', ']', '/', '\\', ':', '*', '?', '"', '<', '>', '|', '.']
+        for characters in invalid_characters:
+            if characters in project_name_to_check:
+                raise ValueError(f"project_name_base cannot contain {characters}")
         if model_name:
             config['model_file'] = model_name
         if images_folder:

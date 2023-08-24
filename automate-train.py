@@ -16,13 +16,13 @@ def update_config(tuning_config_path : str) -> None:
         "PORT" : "port"
     }
     with open(tuning_config_path, 'r') as f:
-        tuning_config = json.load(f)
+        tuning_config_new = json.load(f)
     for keys in keys_to_replace:
-        if keys in tuning_config:
-            tuning_config[keys_to_replace[keys]] = tuning_config[keys]
-            del tuning_config[keys]
+        if keys in tuning_config_new:
+            tuning_config_new[keys_to_replace[keys]] = tuning_config_new[keys]
+            del tuning_config_new[keys]
     with open(tuning_config_path, 'w') as f:
-        json.dump(tuning_config, f, indent=4)
+        json.dump(tuning_config_new, f, indent=4)
 
 
 def generate_config(**modified_kwargs) -> dict:
@@ -242,8 +242,8 @@ if __name__ == '__main__':
         tuning_config['port'] = tuning_config['PORT']
         del tuning_config['PORT']
     keys_to_remove = {'CUDA_VISIBLE_DEVICES', 'PORT'}
-    for args in product(*list_arguments_name.values()):
-        list_arguments = dict(zip(list_arguments_name.keys(), args))
+    for args_prod in product(*list_arguments_name.values()):
+        list_arguments = dict(zip(list_arguments_name.keys(), args_prod))
         temp_tuning_config = generate_tuning_config(tuning_config, **list_arguments)
         # check validity
         if temp_tuning_config['network_alpha'] > temp_tuning_config['network_dim']:

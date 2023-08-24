@@ -237,7 +237,7 @@ if __name__ == '__main__':
         config = generate_config(**temp_tuning_config,
                                 )
         # override args
-        config['project_name_base'] = project_name_base
+        config['project_name_base'] = project_name_base if project_name_base != "BASE" else config['project_name_base']
         if model_name:
             config['model_file'] = model_name
         if images_folder:

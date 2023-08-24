@@ -6,7 +6,7 @@ import argparse
 import shutil
 import json
 import socket
-from typing import Tuple
+from typing import List, Tuple
 from ast import literal_eval
 
 
@@ -230,7 +230,7 @@ def create_config():
       "dataset_arguments": {
         "cache_latents": True,
       },
-      
+      "extra_arguments": extra_args_dict
     }
 
     for key in config_dict:
@@ -323,7 +323,7 @@ def get_separated_list(result_list) -> dict:
 
     return text_encoder_lr, down, middle, up
 
-def add_basic_arguments(parser : argparse.ArgumentParser) -> None:
+def add_basic_arguments(parser : argparse.ArgumentParser) -> List[str]:
   """
   Adds basic arguments to the parser.
   """
@@ -349,8 +349,9 @@ def add_basic_arguments(parser : argparse.ArgumentParser) -> None:
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
   # should we use port fallback
   parser.add_argument('--port_fallback', type=bool, default=True, help='Use port fallback (default: False)')
+  return []
 
-def add_sample_args(parser : argparse.ArgumentParser) -> None:
+def add_sample_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   Adds sample arguments to the parser.
   """
@@ -360,8 +361,9 @@ def add_sample_args(parser : argparse.ArgumentParser) -> None:
   parser.add_argument('--sample_opt', type=str, default='epoch', help='Sample option for the project (default: epoch, can be None)')
   # sample_num
   parser.add_argument('--sample_num', type=int, default=1, help='Sample number for the project (default: 1)')
+  return []
 
-def add_lora_args(parser : argparse.ArgumentParser) -> None:
+def add_lora_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   Adds lora arguments to the parser.
   """
@@ -374,8 +376,9 @@ def add_lora_args(parser : argparse.ArgumentParser) -> None:
   parser.add_argument('--conv_alpha', type=int, default=1,
                       help='Alpha value for the convolutional layers (default: 1)')
   parser.add_argument('--lora_type', type=str, default='LoRA', help='LoRA type for the project (default: LoRA)')
+  return []
 
-def add_training_args(parser : argparse.ArgumentParser) -> None:
+def add_training_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   Adds training arguments to the parser.
   """
@@ -392,8 +395,9 @@ def add_training_args(parser : argparse.ArgumentParser) -> None:
   parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
                       help='Learning rate for the text encoder (default: 2e-5)')
   parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
+  return []
 
-def add_regularization_args(parser : argparse.ArgumentParser) -> None:
+def add_regularization_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   Adds regularization arguments to the parser.
   """
@@ -407,19 +411,20 @@ def add_regularization_args(parser : argparse.ArgumentParser) -> None:
   # add 17-length list input for text/down/middle/up lr weight parsing
   parser.add_argument('--lbw_weights', type=str, default='',
                       help='Optional 16 or 17-length list input for text/down/middle/up lr weight parsing (default: ""), this will disable other block lr arguments')
+  return []
 
-def add_gor_args(parser: argparse.ArgumentParser)-> None:
+def add_gor_args(parser: argparse.ArgumentParser)-> List[str]:
     parser.add_argument("--gor_num_groups", type=int, default=32, help="number of groups for group orthogonality regularization")
     parser.add_argument("--gor_regularization_type", type=str, default=None, help="type of group orthogonality regularization, 'inter' or 'intra'")
     parser.add_argument("--gor_name_to_regularize", type=str, default='up_blocks.*_lora\.up', help="name of the layer to regularize, e.g. 'up_blocks.*_lora\.up'")
     parser.add_argument("--gor_regularize_fc_layers", type=bool, default=True, help="whether to regularize fully connected layers")
     parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
     parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
-    
+    return ['gor_num_groups', 'gor_regularization_type', 'gor_name_to_regularize', 'gor_regularize_fc_layers', 'gor_ortho_decay', 'gor_regularization']
 
 
 
-def add_augmentation_args(parser : argparse.ArgumentParser) -> None:
+def add_augmentation_args(parser : argparse.ArgumentParser) -> List[str]:
   # face_crop_aug_range [float, float]
   # flip_aug bool
   # color_aug bool
@@ -427,16 +432,17 @@ def add_augmentation_args(parser : argparse.ArgumentParser) -> None:
   """
   Adds augmentation arguments to the parser.
   """
-  parser.add_argument('--face_crop_aug_range', type=str, default="[0.0, 0.0]",
-                      help='Face crop augmentation range for the project (default: [0.0, 0.0])')
+  parser.add_argument('--face_crop_aug_range', type=str, default="0.0,0.0",
+                      help='Face crop augmentation range for the project (default: 0.0, 0.0)')
   parser.add_argument('--flip_aug', type=bool, default=False,
                       help='Flip augmentation for the project (default: False)')
   parser.add_argument('--color_aug', type=bool, default=False,
                       help='Color augmentation for the project (default: False)')
   parser.add_argument('--random_crop', type=bool, default=False,
                       help='Random crop for the project (default: False)')
+  return ['face_crop_aug_range', 'flip_aug', 'color_aug', 'random_crop']
 
-def add_extra_args(parser : argparse.ArgumentParser) -> None:
+def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   Adds extra arguments to the parser.
   """
@@ -448,21 +454,28 @@ def add_extra_args(parser : argparse.ArgumentParser) -> None:
   parser.add_argument('--resolution', type=int, default=512, help='Resolution for the project (default: 512)')
   # clip skip
   parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
-
+  return []
   
 if __name__ == "__main__":
+  extra_args = []
   parser = argparse.ArgumentParser(description='LoRA Trainer')
-  add_basic_arguments(parser)
-  add_sample_args(parser)
-  add_lora_args(parser)
-  add_training_args(parser)
-  add_regularization_args(parser)
-  add_augmentation_args(parser)
-  add_gor_args(parser) # group orthogonality regularization
-  add_extra_args(parser) # seed, keep_tokens, resolution, clip_skip 
+  extra_args.extend(add_basic_arguments(parser))
+  extra_args.extend(add_sample_args(parser)) # prompt, sample_opt, sample_num
+  extra_args.extend(add_lora_args(parser)) # network_dim, network_alpha, conv_dim, conv_alpha
+  extra_args.extend(add_training_args(parser)) # optimizer, num_repeats, epoch_num, train_batch_size, unet_lr, text_encoder_lr, lr_scheduler
+  extra_args.extend(add_regularization_args(parser)) # max_grad_norm, up_lr_weight, down_lr_weight, mid_lr_weight
+  extra_args.extend(add_augmentation_args(parser)) # face_crop_aug_range, flip_aug, color_aug, random_crop
+  extra_args.extend(add_gor_args(parser)) # group orthogonality regularization
+  extra_args.extend(add_extra_args(parser)) # seed, keep_tokens, resolution, clip_skip 
   # keep tokens should be used only if first tags(comma separated) are properly tagged and set up in dataset.
 
   args = parser.parse_args()
+
+  extra_args_dict = {
+    k : getattr(args, k) for k in extra_args
+  }
+  print("Extra args dict : ", extra_args_dict)
+  
   try:
     down_lr_weight = literal_eval(args.down_lr_weight)
     up_lr_weight = literal_eval(args.up_lr_weight)

@@ -35,6 +35,9 @@ from library.custom_train_functions import (
     add_v_prediction_like_loss,
     apply_gor_loss
 )
+from library.group_orthogonalization_normalization import (
+    check_need_to_regularize
+)
 
 
 class NetworkTrainer:
@@ -718,7 +721,7 @@ class NetworkTrainer:
             if os.path.exists(old_ckpt_file):
                 accelerator.print(f"removing old checkpoint: {old_ckpt_file}")
                 os.remove(old_ckpt_file)
-        print(list(unet.named_modules()))
+        # print([k for k,v in unet.named_modules() if check_need_to_regularize(v, k, True, ["'up_blocks.*_lora\.up'"])])
         # training loop
         for epoch in range(num_train_epochs):
             accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
@@ -794,7 +797,7 @@ class NetworkTrainer:
                     if args.v_pred_like_loss:
                         loss = add_v_prediction_like_loss(loss, timesteps, noise_scheduler, args.v_pred_like_loss)
                     if args.gor_regularization: # required args : gor_num_groups : int, gor_regularization_type: str, gor_name_to_regularize: str, gor_regularize_fc_layers: bool, gor_ortho_decay: float
-                        loss = apply_gor_loss(loss, unet, args.gor_num_groups, args.gor_regularization_type, args.gor_name_to_regularize,
+                        loss = apply_gor_loss(loss, network.unet_loras, args.gor_num_groups, args.gor_regularization_type, args.gor_name_to_regularize,
                             args.gor_regularize_fc_layers, args.gor_ortho_decay)
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
 

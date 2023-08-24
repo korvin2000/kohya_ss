@@ -313,10 +313,10 @@ def train(args):
         text_encoder2.to("cpu", dtype=torch.float32)
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-    # else:
-    #     # make sure Text Encoders are on GPU
-    #     text_encoder1.to(accelerator.device)
-    #     text_encoder2.to(accelerator.device)
+    else:
+        # make sure Text Encoders are on GPU
+        text_encoder1.to(accelerator.device)
+        text_encoder2.to(accelerator.device)
 
     # 実験的機能：勾配も含めたfp16学習を行う　PyTorchにパッチを当ててfp16でのgrad scaleを有効にする
     if args.full_fp16:

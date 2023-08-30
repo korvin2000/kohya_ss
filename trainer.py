@@ -242,6 +242,8 @@ def create_config():
     print(f"\n📄 Config saved to {config_file}")
 
   if override_dataset_config_file:
+    # copy to dataset_config_file
+    shutil.copyfile(override_dataset_config_file, dataset_config_file)
     dataset_config_file = override_dataset_config_file
     print(f"⭕ Using custom dataset config file {dataset_config_file}")
   else:

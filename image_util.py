@@ -14,7 +14,7 @@ def load_image(path):
     """
     return cv2.imread(path)
 
-def grid_image(path_list:List[str], image_per_row:int=5):
+def grid_path(path_list:List[str], image_per_row:int=5):
     """
     Grid images in a list of paths.
     """
@@ -79,6 +79,6 @@ def process_path(path:str):
     """
     for idx, image_paths in enumerate(glob_path(path)):
         image_paths = [path for epoch, path in image_paths]
-        grid_image = grid_image(image_paths)
-        cv2.imwrite(f'{path}{os.path.sep}{idx}.png', grid_image)
+        result = grid_path(image_paths)
+        cv2.imwrite(f'{path}{os.path.sep}{idx}.png', result)
         

@@ -49,7 +49,7 @@ def glob_path(path:str):
     # e000001_01_41 -> e<epoch>_<setting>_<seed>
     # group by <setting>_<seed>
     # sort by <epoch>
-    all_paths = glob.glob(path + os.path.sep + '*.png')
+    all_paths = glob.glob(path + os.path.sep + '**.png')
     # get groups
     groups = {}
     for path in all_paths:

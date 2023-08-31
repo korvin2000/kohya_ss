@@ -55,17 +55,15 @@ def glob_path(path:str):
     for path in all_paths:
         base_name = os.path.basename(path)
         pure_name = os.path.splitext(base_name)[0]
-        # regex
+        # regex for e000000_00_00
         pattern = r'e(\d+)_(\d+)_(\d+)'
-        match = re.match(pattern, pure_name)
+        match = re.search(pattern, pure_name)
         if match:
             epoch = int(match.group(1))
             setting = int(match.group(2))
             seed = int(match.group(3))
-            keys = (setting, seed)
-            if keys not in groups:
-                groups[keys] = []
-            groups[keys].append((epoch, path))
+            key_to_use = f'{setting}_{seed}'
+            groups[key_to_use].append((epoch, path))
     # sort groups
     for keys in groups:
         groups[keys] = sorted(groups[keys], key=lambda x: x[0])

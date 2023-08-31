@@ -8,6 +8,7 @@ import json
 import socket
 from typing import List, Tuple
 from ast import literal_eval
+from image_util import process_path
 
 
 def get_available_port(port: int, max_retries=100) -> int:
@@ -628,6 +629,7 @@ if __name__ == "__main__":
   log_folder    = os.path.join(main_dir, "_logs")
   config_folder = os.path.join(main_dir, project_name + suffix)
   output_folder = os.path.join(main_dir, project_name + suffix, "output")
+  sample_folder = os.path.join(main_dir, project_name + suffix, "output", "samples")
 
   config_file = os.path.join(config_folder, "training_config.toml")
   dataset_config_file = os.path.join(config_folder, "dataset_config.toml")
@@ -648,5 +650,6 @@ if __name__ == "__main__":
     shutil.copy(config_file, os.path.join(target_path, f"training_config_{suffix}.toml"))
     #shutil.copy(dataset_config_file, os.path.join(target_path, f"dataset_config_{suffix}.toml"))
     #shutil.copy(accelerate_config_file, os.path.join(target_path, f"accelerate_config_{suffix}.yaml"))
+  process_path(output_folder)
 
   print("Done!")

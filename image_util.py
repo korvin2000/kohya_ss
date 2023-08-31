@@ -63,6 +63,8 @@ def glob_path(path:str):
             setting = int(match.group(2))
             seed = int(match.group(3))
             key_to_use = f'{setting}_{seed}'
+            if key_to_use not in groups:
+                groups[key_to_use] = []
             groups[key_to_use].append((epoch, path))
     # sort groups
     for keys in groups:

@@ -52,11 +52,12 @@ def process_toml_path(path:str, csv_path:str):
     Process all toml files recursively under path.
     """
     keyset = gather_toml(path)
-    writer = csv.DictWriter(csv_path, fieldnames=keyset)
-    for subfolders in glob.glob(path + "/*"):
-        if os.path.isdir(subfolders):
-            process_subfolder(subfolders, writer)
-    writer.writeheader()
+    with open(csv_path, 'w', newline='') as csv_path:
+        writer = csv.DictWriter(csv_path, fieldnames=keyset)
+        for subfolders in glob.glob(path + "/*"):
+            if os.path.isdir(subfolders):
+                process_subfolder(subfolders, writer)
+        writer.writeheader()
     return keyset
 
 if __name__ == "__main__":

@@ -255,7 +255,6 @@ def create_config():
         "shuffle_caption": shuffle_caption,
         "keep_tokens": keep_tokens,
         "flip_aug": flip_aug,
-        "color_aug": color_aug,
         "caption_extension": caption_extension,
         "enable_bucket": True,
         "bucket_reso_steps": 64,
@@ -463,6 +462,10 @@ def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--resolution', type=int, default=512, help='Resolution for the project (default: 512)')
   # clip skip
   parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
+  # min snr gamma and min snr gamma value
+  parser.add_argument('--min_snr_gamma', type=bool, default=True, help='Min snr gamma for the project (default: True)')
+  # min snr gamma
+  parser.add_argument('--min_snr_gamma_value', type=float, default=5.0, help='Min snr gamma value for the project (default: 5.0)')
   return []
 
 def fix_boolean_args(argument_dict : dict) -> dict:
@@ -598,8 +601,8 @@ if __name__ == "__main__":
   lr_scheduler_power = lr_scheduler_number if lr_scheduler == "polynomial" else 0
   lr_warmup_ratio = 0.05 #@param {type:"slider", min:0.0, max:0.5, step:0.01}
   lr_warmup_steps = 0
-  min_snr_gamma = True #@param {type:"boolean"}
-  min_snr_gamma_value = 5.0 if min_snr_gamma else None
+  min_snr_gamma = args.min_snr_gamma #@param {type:"boolean"}
+  min_snr_gamma_value = args.min_snr_gamma_value if min_snr_gamma else None
   lora_type = args.lora_type #@param ["LoRA", "LoCon Lycoris", "LoHa Lycoris"]
   conv_compression = False #@param {type:"boolean"}
   network_module = "lycoris.kohya" if "Lycoris" in lora_type else "networks.lora"

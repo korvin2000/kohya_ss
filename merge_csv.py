@@ -38,7 +38,8 @@ def gather_toml(path:str) -> List[Dict[str, Any]]:
     keyset = set()
     for toml_path in glob.glob(path + "/**/*.toml", recursive=True):
         keyset.update(flatten_toml(toml.load(toml_path)).keys())
-    return list(keyset)
+    
+    return sorted(list(keyset))
 
 def process_subfolder(path:str, writer:csv.DictWriter):
     """
@@ -53,11 +54,12 @@ def process_toml_path(path:str, csv_path:str):
     """
     keyset = gather_toml(path)
     with open(csv_path, 'w', newline='') as csv_path:
-        writer = csv.DictWriter(csv_path, fieldnames=keyset)
+        writer = csv.DictWriter(csv_path, fieldnames=
+                                keyset)
+        writer.writeheader()
         for subfolders in glob.glob(path + "/*"):
             if os.path.isdir(subfolders):
                 process_subfolder(subfolders, writer)
-        writer.writeheader()
     return keyset
 
 if __name__ == "__main__":

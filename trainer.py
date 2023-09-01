@@ -650,6 +650,6 @@ if __name__ == "__main__":
     shutil.copy(config_file, os.path.join(target_path, f"training_config_{suffix}.toml"))
     #shutil.copy(dataset_config_file, os.path.join(target_path, f"dataset_config_{suffix}.toml"))
     #shutil.copy(accelerate_config_file, os.path.join(target_path, f"accelerate_config_{suffix}.yaml"))
-  process_path(output_folder)
+  process_path(sample_folder)
 
   print("Done!")

@@ -9,6 +9,7 @@ import socket
 from typing import List, Tuple
 from ast import literal_eval
 from image_util import process_path
+import csv
 
 
 def get_available_port(port: int, max_retries=100) -> int:
@@ -474,7 +475,7 @@ def fix_boolean_args(argument_dict : dict) -> dict:
       elif value.lower() == 'false':
         argument_dict[key] = False
   return argument_dict
-  
+      
 if __name__ == "__main__":
   extra_args = []
   parser = argparse.ArgumentParser(description='LoRA Trainer')
@@ -650,6 +651,14 @@ if __name__ == "__main__":
     shutil.copy(config_file, os.path.join(target_path, f"training_config_{suffix}.toml"))
     #shutil.copy(dataset_config_file, os.path.join(target_path, f"dataset_config_{suffix}.toml"))
     #shutil.copy(accelerate_config_file, os.path.join(target_path, f"accelerate_config_{suffix}.yaml"))
-  process_path(sample_folder)
+  result_samples = process_path(sample_folder)
+  # move processed samples to target_path
+  if not os.path.exists(os.path.join(target_path, "grid_samples")):
+    os.makedirs(os.path.join(target_path, "grid_samples"))
+  for grid_path in result_samples:
+    prefix = f's{suffix}_'
+    # move to target_path/samples/prefix+basename(grid_path)
+    shutil.move(grid_path, os.path.join(target_path, "grid_samples", prefix+os.path.basename(grid_path)))
+  
 
   print("Done!")

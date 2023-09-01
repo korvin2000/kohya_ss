@@ -73,12 +73,14 @@ def glob_path(path:str):
     return list(groups.values())
             
 
-def process_path(path:str):
+def process_path(path:str) -> List[str]:
     """
     Process path and save as separate images.
     """
+    result_paths = []
     for idx, image_paths in enumerate(glob_path(path)):
         image_paths = [path for epoch, path in image_paths]
         result = grid_path(image_paths)
         cv2.imwrite(f'{path}{os.path.sep}{idx}.png', result)
-        
+        result_paths.append(f'{path}{os.path.sep}{idx}.png')
+    return result_paths

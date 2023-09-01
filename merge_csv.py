@@ -45,8 +45,10 @@ def process_subfolder(path:str, writer:csv.DictWriter):
     """
     Process all toml files recursively under path.
     """
+    merged_dict = {}
     for toml_path in glob.glob(path + "/**.toml"):
-        writer.writerow(flatten_toml(toml.load(toml_path)))
+        merged_dict.update(flatten_toml(toml.load(toml_path)))
+    writer.writerow(merged_dict)
     
 def process_toml_path(path:str, csv_path:str):
     """

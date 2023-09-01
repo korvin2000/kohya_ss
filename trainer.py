@@ -230,7 +230,7 @@ def create_config():
         "prior_loss_weight": 1.0,
       },
       "dataset_arguments": {
-        "cache_latents": True,
+        "cache_latents": True if not flip_aug and not color_aug else False,
       },
       "extra_arguments": extra_args_dict
     }
@@ -255,6 +255,7 @@ def create_config():
         "shuffle_caption": shuffle_caption,
         "keep_tokens": keep_tokens,
         "flip_aug": flip_aug,
+        "color_aug": color_aug,
         "caption_extension": caption_extension,
         "enable_bucket": True,
         "bucket_reso_steps": 64,
@@ -537,6 +538,7 @@ if __name__ == "__main__":
   suffix = args.custom_suffix
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
+  color_aug = args.color_aug
   assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
   assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
   assert sample_opt == 'None' or not prompt_path or os.path.exists(prompt_path), "Prompt file not found at "+prompt_path

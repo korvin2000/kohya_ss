@@ -629,7 +629,7 @@ if __name__ == "__main__":
   log_folder    = os.path.join(main_dir, "_logs")
   config_folder = os.path.join(main_dir, project_name + suffix)
   output_folder = os.path.join(main_dir, project_name + suffix, "output")
-  sample_folder = os.path.join(main_dir, project_name + suffix, "output", "samples")
+  sample_folder = os.path.join(main_dir, project_name + suffix, "output", "sample")
 
   config_file = os.path.join(config_folder, "training_config.toml")
   dataset_config_file = os.path.join(config_folder, "dataset_config.toml")

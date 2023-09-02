@@ -663,7 +663,7 @@ if __name__ == "__main__":
   for grid_path in result_samples:
     prefix = f's{suffix}_'
     # move to target_path/samples/prefix+basename(grid_path)
-    shutil.move(grid_path, os.path.join(target_path, "grid_samples", prefix+os.path.basename(grid_path)))
+    shutil.move(grid_path, os.path.join(target_path, "grid_samples", project_name + prefix + os.path.basename(grid_path)))
   
 
   print("Done!")

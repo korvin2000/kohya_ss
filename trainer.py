@@ -200,12 +200,12 @@ def create_config():
         "weighted_captions": weighted_captions,
         "seed": training_seed,
         "max_token_length": 225,
-        "xformers": True,
+        "xformers": xformers,
         "lowram": False,
         "max_data_loader_n_workers": 8,
         "persistent_data_loader_workers": True,
-        "save_precision": "fp16",
-        "mixed_precision": "fp16",
+        "save_precision": precision_type,
+        "mixed_precision": precision_type,
         "output_dir": output_folder,
         "logging_dir": log_folder,
         "output_name": project_name,
@@ -403,6 +403,10 @@ def add_training_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
                       help='Learning rate for the text encoder (default: 2e-5)')
   parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
+  # xformers
+  parser.add_argument('--xformers', type=str, default='False', help='Xformers for the project (default: False)')
+  # precision_type
+  parser.add_argument('--precision_type', type=str, default='bf16', help='Precision type for the project (default: bf16, available: bf16, fp32, fp16)')
   return []
 
 def add_regularization_args(parser : argparse.ArgumentParser) -> List[str]:
@@ -558,6 +562,9 @@ if __name__ == "__main__":
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
   color_aug = args.color_aug
+  
+  xformers = args.xformers
+  precision_type = args.precision_type
   
   # parse optimizer args
   betas = args.adamw_betas

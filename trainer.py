@@ -468,6 +468,21 @@ def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--min_snr_gamma_value', type=float, default=5.0, help='Min snr gamma value for the project (default: 5.0)')
   return []
 
+def add_optimizer_args(parser : argparse.ArgumentParser) -> List[str]:
+  """
+  Adds optimizer arguments to the parser.
+  """
+  # betas 0.9, 0.999
+  # eps 1e-8
+  # weight_decay 0.01
+  parser.add_argument('--adamw_betas', type=str, default='0.9,0.999',
+                      help='Betas for the optimizer (default: 0.9,0.999)')
+  parser.add_argument('--adamw_eps', type=float, default=1e-8,
+                      help='Epsilon for the optimizer (default: 1e-8)')
+  parser.add_argument('--adamw_weight_decay', type=float, default=0.01,
+                      help='Weight decay for the optimizer (default: 0.01)')
+  return []
+
 def fix_boolean_args(argument_dict : dict) -> dict:
   """
   Fixes boolean arguments in the argument dict.
@@ -491,6 +506,7 @@ if __name__ == "__main__":
   extra_args.extend(add_augmentation_args(parser)) # face_crop_aug_range, flip_aug, color_aug, random_crop
   extra_args.extend(add_gor_args(parser)) # group orthogonality regularization
   extra_args.extend(add_extra_args(parser)) # seed, keep_tokens, resolution, clip_skip 
+  extra_args.extend(add_optimizer_args(parser)) # betas, eps, weight_decay
   # keep tokens should be used only if first tags(comma separated) are properly tagged and set up in dataset.
 
   args = parser.parse_args()
@@ -542,6 +558,16 @@ if __name__ == "__main__":
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
   color_aug = args.color_aug
+  
+  # parse optimizer args
+  betas = args.adamw_betas
+  # assert , in betas and length is 2 and both are float, such as 0.9,0.999
+  betas = [float(s) for s in betas.split(',')]
+  assert len(betas) == 2, "Betas must be length 2, but given "+str(len(betas))
+  assert isinstance(betas[0], float) and isinstance(betas[1], float), "Betas must be float, but given "+str(betas)
+  epsilon = args.adamw_eps
+  weight_decay = args.adamw_weight_decay
+  
   assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
   assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
   assert sample_opt == 'None' or not prompt_path or os.path.exists(prompt_path), "Prompt file not found at "+prompt_path
@@ -624,12 +650,14 @@ if __name__ == "__main__":
   if optimizer == "DAdaptation":
     print("Using DAdaptation optimizer, the following arguments will be ignored:")
     print("unet_lr, text_encoder_lr, optimizer_args, lr_scheduler")
-    optimizer_args = ["decouple=True","weight_decay=0.02","betas=[0.9,0.99]"]
+    optimizer_args = ["decouple=True",f"weight_decay={weight_decay}",f"betas=[{betas}]",f"eps={epsilon}"]
     unet_lr = 0.5
     text_encoder_lr = 0.5 * lbw_text_encoder_lr_mult
     if lr_scheduler != "constant_with_warmup":
       print(f"Using lr scheduler {lr_scheduler}, recommended for DAdaptation is constant_with_warmup")
     #network_alpha = network_dim
+  elif optimizer == "AdamW8bit":
+    optimizer_args = [f"betas=[{betas}]", f"weight_decay={weight_decay}", f"eps={epsilon}"]
   
   main_dir      = root_dir
   log_folder    = os.path.join(main_dir, "_logs")

@@ -42,6 +42,7 @@ from library.dreambooth_folder_creation_gui import (
 from library.dataset_balancing_gui import gradio_dataset_balancing_tab
 
 from library.custom_logging import setup_logging
+from localization_ext import add_javascript
 
 from library.port_util import get_available_port
 
@@ -1804,6 +1805,7 @@ def UI(**kwargs):
     try:
         # Your main code goes here
         while True:
+            add_javascript(kwargs.get('language'))
             css = ''
 
             headless = kwargs.get('headless', False)
@@ -1893,6 +1895,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--headless', action='store_true', help='Is the server headless'
     )
+    parser.add_argument(
+        '--language', type=str, default=None, help='Set custom language'
+    )
 
     args = parser.parse_args()
 
@@ -1904,4 +1909,5 @@ if __name__ == '__main__':
         share=args.share,
         listen=args.listen,
         headless=args.headless,
+        language=args.language,
     )

@@ -41,7 +41,7 @@ def validate_dataset():
   print("\n💿 Checking dataset...")
   if not project_name.strip() or any(c in project_name for c in " .()\"'\\/"):
     print("💥 Error: Please choose a valid project name.")
-    return
+    raise Exception("Invalid project name")
 
   if custom_dataset:
     try:
@@ -53,7 +53,6 @@ def validate_dataset():
       print(f"💥 Error: Your custom dataset is invalid or contains an error! Please check the original template.")
       print(e)
       raise e
-      return
     reg = [d for d in datasets if d.get("is_reg", False)]
     for r in reg:
       print("📁"+r["image_dir"].replace("/content/drive/", "") + " (Regularization)")
@@ -70,21 +69,21 @@ def validate_dataset():
   for folder in folders:
     if not os.path.exists(folder):
       print(f"💥 Error: The folder {folder.replace('/content/drive/', '')} doesn't exist.")
-      return
+      raise Exception("Empty folder")
   for folder, (img, rep) in images_repeats.items():
     if not img:
       print(f"💥 Error: Your {folder.replace('/content/drive/', '')} folder is empty.")
-      return
+      raise Exception("Empty folder")
   for f in files:
     if not f.lower().endswith(".txt") and not f.lower().endswith(supported_types):
       print(f"💥 Error: Invalid file in dataset: \"{f}\". Aborting.")
-      return
+      raise Exception("Invalid file")
 
   if not [txt for txt in files if txt.lower().endswith(".txt")]:
     caption_extension = ""
   if continue_from_lora and not (continue_from_lora.endswith(".safetensors") and os.path.exists(continue_from_lora)):
     print(f"💥 Error: Invalid path to existing Lora. Example: /content/drive/MyDrive/Loras/example.safetensors")
-    return
+    raise Exception("Invalid Lora path")
 
   pre_steps_per_epoch = sum(img*rep for (img, rep) in images_repeats.values())
   steps_per_epoch = pre_steps_per_epoch/train_batch_size
@@ -103,7 +102,7 @@ def validate_dataset():
 
   if total_steps > 10000:
     print("💥 Error: Your total steps are too high. You probably made a mistake. Aborting...")
-    return
+    raise Exception("Too many steps")
 
   if adjust_tags:
     print(f"\n📎 Weighted tags: {'ON' if weighted_captions else 'OFF'}")

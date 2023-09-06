@@ -470,7 +470,9 @@ def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--min_snr_gamma', type=bool, default=True, help='Min snr gamma for the project (default: True)')
   # min snr gamma
   parser.add_argument('--min_snr_gamma_value', type=float, default=5.0, help='Min snr gamma value for the project (default: 5.0)')
-  return []
+  # zero_terminal_snr
+  parser.add_argument('--zero_terminal_snr', type=bool, default=False, help='Zero terminal snr for the project (default: False)')
+  return ['zero_terminal_snr']
 
 def add_optimizer_args(parser : argparse.ArgumentParser) -> List[str]:
   """

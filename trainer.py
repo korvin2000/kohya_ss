@@ -220,7 +220,7 @@ def create_config():
       "model_arguments": {
         "pretrained_model_name_or_path": model_file,
         "v2": custom_model_is_based_on_sd2,
-        "v_parameterization": True if custom_model_is_based_on_sd2 else None,
+        "v_parameterization": args.v_parameterization,
       },
       "saving_arguments": {
         "save_model_as": "safetensors",
@@ -471,6 +471,10 @@ def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--min_snr_gamma_value', type=float, default=5.0, help='Min snr gamma value for the project (default: 5.0)')
   # zero_terminal_snr
   parser.add_argument('--zero_terminal_snr', type=bool, default=False, help='Zero terminal snr for the project (default: False)')
+  # is_sd2
+  parser.add_argument('--is_sd2', type=bool, default=False, help='Is sd2 for the project (default: False)')
+  # v_parameterization
+  parser.add_argument('--v_parameterization', type=bool, default=False, help='V parameterization for the project (default: False)')
   return ['zero_terminal_snr']
 
 def add_optimizer_args(parser : argparse.ArgumentParser) -> List[str]:
@@ -612,7 +616,8 @@ if __name__ == "__main__":
   weighted_captions = True ## True로 하면 Weighted Caption 적용
   adjust_tags = True
   keep_tokens_weight = 1.0 
-  custom_model_is_based_on_sd2 = False #@param {type:"boolean"}
+  custom_model_is_based_on_sd2 = args.is_sd2 #@param {type:"boolean"}
+  v_parameterization = args.v_parameterization #@param {type:"boolean"}
   resolution = args.resolution
   flip_aug = False #@param {type:"boolean"}
   caption_extension = ".txt" #param {type:"string"}

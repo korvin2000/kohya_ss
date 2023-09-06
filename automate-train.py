@@ -79,7 +79,7 @@ def load_default_config(config_path:str):
         'down_lr_weight' : '[1,1,1,1,1,1,1,1,1,1,1,1]',
         'mid_lr_weight' : 1,
         'lbw_weights' : '', # [1,]*17 or [1]* 16, modify this if you want
-        'weight_decay' : 0.01 #default 0.01
+        'adamw_weight_decay' : 0.01 #default 0.01
     }
     try:
         with open(config_path, 'r') as f:

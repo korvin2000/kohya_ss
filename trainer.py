@@ -665,7 +665,7 @@ if __name__ == "__main__":
       print(f"Using lr scheduler {lr_scheduler}, recommended for DAdaptation is constant_with_warmup")
     #network_alpha = network_dim
   elif optimizer == "AdamW8bit":
-    optimizer_args = [f"betas=[{betas}]", f"weight_decay={weight_decay}", f"eps={epsilon}"]
+    optimizer_args = [f"betas={betas}", f"weight_decay={weight_decay}", f"eps={epsilon}"]
   
   main_dir      = root_dir
   log_folder    = os.path.join(main_dir, "_logs")

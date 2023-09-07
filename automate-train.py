@@ -3,7 +3,8 @@ import subprocess
 from itertools import product
 import argparse
 import json
-
+import random
+import tempfile
 
 def update_config(tuning_config_path : str) -> None:
     """
@@ -21,6 +22,39 @@ def update_config(tuning_config_path : str) -> None:
             del tuning_config_new[keys]
     with open(tuning_config_path, 'w') as f:
         json.dump(tuning_config_new, f, indent=4)
+
+def create_log_tracker_config(template_path_to_read:str, project_name, dict_args:dict, force_generate:bool=True):
+    """
+    Creates log tracker config from template. Stringifies the setups, and adds random 6 length alphanumeric string to the end of the project name.
+    """
+    if template_path_to_read == 'none':
+        return None
+    if not os.path.exists(template_path_to_read):
+        if force_generate:
+            template = r'''[[[wandb]]]
+            name = "{0}"
+            '''
+        else:
+            raise OSError("Template path does not exist : "+template_path_to_read)
+    else:
+        with open(template_path_to_read, 'r') as f:
+            template = f.read()
+    merged_string = f"{project_name}_"+"_".join([f"{key}={value}" for key, value in dict_args.items()]) + "_" + generate_random_string()
+    new_template = template.format(
+        merged_string
+    )
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_toml_file:
+        temp_toml_file.write(new_template)
+    return temp_toml_file.name
+    
+    
+def generate_random_string(length:int=6) -> str:
+    """
+    Generates random string of length 6
+    """
+    # pick 10 + 26 = 36 characters
+    characters_to_use = '0123456789abcdefghijklmnopqrstuvwxyz'
+    return ''.join(random.choice(characters_to_use) for _ in range(length))
 
 
 def generate_config(**modified_kwargs) -> dict:
@@ -79,7 +113,7 @@ def load_default_config(config_path:str):
         'adamw_weight_decay' : 0.01, #default 0.01
         'log_with' : None,
         'wandb_api_key' : '',
-        'log_tracker_config' : 'none'
+        'log_tracker_config_template' : 'none'
     }
     try:
         with open(config_path, 'r') as f:
@@ -235,7 +269,13 @@ if __name__ == '__main__':
     if tuning_config['custom_dataset'] is not None:
         ignored_options_name = ['images_folder', 'num_repeats','shuffle_caption', 'keep_tokens', 'resolution']
         print(f"custom_dataset is not None, dataset options {ignored_options_name} will be ignored")
-
+        
+    # if log_tracker_config_template is not none, create log tracker config and remove the key
+    template_path = None
+    if tuning_config['log_tracker_config_template'] != 'none':
+        template_path = tuning_config['log_tracker_config_template']
+        del tuning_config['log_tracker_config_template']
+                
     list_arguments_name = {}
     for arguments, values in tuning_config.items():
         if arguments.endswith('_list'):
@@ -243,9 +283,14 @@ if __name__ == '__main__':
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
         del tuning_config['PORT']
+    if tuning_config.get('project_name_base', 'BASE') != 'BASE':
+        project_name_base = tuning_config['project_name_base']
     keys_to_remove = {'CUDA_VISIBLE_DEVICES', 'PORT'}
     for args_prod in product(*list_arguments_name.values()):
         list_arguments = dict(zip(list_arguments_name.keys(), args_prod))
+        if template_path is not None:
+            log_tracker_config_path = create_log_tracker_config(template_path, project_name_base, list_arguments)
+            list_arguments['log_tracker_config'] = log_tracker_config_path
         temp_tuning_config = generate_tuning_config(tuning_config, **list_arguments)
         # check validity
         if temp_tuning_config['network_alpha'] > temp_tuning_config['network_dim']:

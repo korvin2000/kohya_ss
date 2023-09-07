@@ -23,7 +23,7 @@ def update_config(tuning_config_path : str) -> None:
     with open(tuning_config_path, 'w') as f:
         json.dump(tuning_config_new, f, indent=4)
 
-def create_log_tracker_config(template_path_to_read:str, project_name, dict_args:dict, force_generate:bool=True):
+def create_log_tracker_config(template_path_to_read:str, project_name, dict_args:dict, force_generate:bool=True, args_to_remove:list = []):
     """
     Creates log tracker config from template. Stringifies the setups, and adds random 6 length alphanumeric string to the end of the project name.
     """
@@ -40,7 +40,7 @@ def create_log_tracker_config(template_path_to_read:str, project_name, dict_args
     else:
         with open(template_path_to_read, 'r') as f:
             template = f.read()
-    merged_string = f"{project_name}_"+"_".join([f"{key}={value}" for key, value in dict_args.items()]) + "_" + generate_random_string()
+    merged_string = f"{project_name}_"+"_".join([f"{key}={value}" for key, value in dict_args.items() if key not in args_to_remove]) + "_" + generate_random_string()
     new_template = template.format(
         merged_string
     )
@@ -280,6 +280,12 @@ if __name__ == '__main__':
     for arguments, values in tuning_config.items():
         if arguments.endswith('_list'):
             list_arguments_name[arguments.replace('_list', '')] = values
+            
+    singleton_args = []
+    for args in list_arguments_name:
+        if len(list_arguments_name[args]) == 1:
+            print(f"argument {args} is singleton, will be removed from log_tracker_config")
+            singleton_args.append(args)
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
         del tuning_config['PORT']
@@ -289,7 +295,7 @@ if __name__ == '__main__':
     for args_prod in product(*list_arguments_name.values()):
         list_arguments = dict(zip(list_arguments_name.keys(), args_prod))
         if template_path is not None:
-            log_tracker_config_path = create_log_tracker_config(template_path, project_name_base, list_arguments)
+            log_tracker_config_path = create_log_tracker_config(template_path, project_name_base, list_arguments, True, args_to_remove=singleton_args)
             list_arguments['log_tracker_config'] = log_tracker_config_path
         temp_tuning_config = generate_tuning_config(tuning_config, **list_arguments)
         # check validity

@@ -5,9 +5,6 @@ import argparse
 import json
 
 
-tuning_config = {
-}
-
 def update_config(tuning_config_path : str) -> None:
     """
     replace old keys with new keys
@@ -159,10 +156,10 @@ def load_tuning_config(config_path:str):
             raise FileNotFoundError(f"Couldn't load config file at {config_path}")
         else:
             tuning_config_loaded = {}
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError as decodeException:
         print("Malformed json file")
         if config_path != '':
-            raise json.JSONDecodeError(f"Malformed json file at {config_path}", e.doc, e.pos)
+            raise json.JSONDecodeError(f"Malformed json file at {config_path}", decodeException.doc, decodeException.pos)
         else:
             tuning_config_loaded = {}
     for keys in tuning_config:
@@ -218,7 +215,7 @@ if __name__ == '__main__':
             venv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv') # expected venv path
             os.chdir(os.path.dirname(os.path.abspath(__file__)))
             if not os.path.exists(venv_path):
-                raise ValueError("venv not found at {}".format(venv_path))
+                raise ValueError(f"venv not found at {venv_path}")
             # os-specific venv activation, windows -> Scripts, posix -> bin
             if os.name == 'nt': # windows
                 execute_path = os.path.join(venv_path, 'Scripts', 'python.exe')
@@ -284,7 +281,7 @@ if __name__ == '__main__':
                 continue
             command_inputs.append(f"--{arguments}")
             command_inputs.append(str(values))
-        command_inputs.append(f"--custom_suffix")
+        command_inputs.append("--custom_suffix")
         command_inputs.append(str(train_id))
         if debug:
             print(' '.join(command_inputs) + '\n')
@@ -292,4 +289,4 @@ if __name__ == '__main__':
             subprocess.check_call(command_inputs)
         train_id += 1
         last_tmp_dir = config['temp_dir']
-    subprocess.check_call([execute_path, "merge_csv.py", "--path", last_tmp_dir])
+    subprocess.check_call([execute_path, "merge_csv.py", "--path", last_tmp_dir, "--output", f"result_{project_name_base}.csv"])

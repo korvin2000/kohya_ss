@@ -55,7 +55,7 @@ def process_toml_path(path:str, csv_path:str):
     Process all toml files recursively under path.
     """
     keyset = gather_toml(path)
-    with open(csv_path, 'w', newline='') as csv_path:
+    with open(csv_path, 'w', newline='', encoding='utf-8') as csv_path:
         writer = csv.DictWriter(csv_path, fieldnames=
                                 keyset)
         writer.writeheader()
@@ -67,7 +67,12 @@ def process_toml_path(path:str, csv_path:str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', type=str, default='.')
+    parser.add_argument('--output', type=str, default='results.csv')
     args = parser.parse_args()
+    output_file_name_or_path = args.output
+    # if it is absolute path, just use, else join
+    if not os.path.isabs(output_file_name_or_path):
+        output_file_name_or_path = os.path.join(args.path, args.output)
     # finally merge to csv
-    process_toml_path(args.path, os.path.join(args.path, 'results.csv'))
+    process_toml_path(args.path, output_file_name_or_path)
 

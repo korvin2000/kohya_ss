@@ -4613,8 +4613,12 @@ def sample_images_common(
                     import wandb
                 except ImportError:  # 事前に一度確認するのでここはエラー出ないはず
                     raise ImportError("No wandb / wandb がインストールされていないようです")
-
-                wandb_tracker.log({f"sample_{i}": wandb.Image(image)})
+                # log generation information to wandb
+                wandb_tracker.log(
+                    {
+                        f"prompt : {prompt} seed: {str(seed)}": wandb.Image(image, caption=f"negative_prompt: {negative_prompt}"),
+                    }
+                )
             except:  # wandb 無効時
                 pass
 

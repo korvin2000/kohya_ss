@@ -27,8 +27,9 @@ def create_log_tracker_config(template_path_to_read:str, project_name, dict_args
     """
     Creates log tracker config from template. Stringifies the setups, and adds random 6 length alphanumeric string to the end of the project name.
     """
-    if template_path_to_read == 'none':
+    if not force_generate and template_path_to_read == 'none':
         return None
+    # read template, if not exist, but force_generate is true, create new template
     if not os.path.exists(template_path_to_read):
         if force_generate:
             template = r'''[[[wandb]]]

@@ -78,7 +78,8 @@ def load_default_config(config_path:str):
         'lbw_weights' : '', # [1,]*17 or [1]* 16, modify this if you want
         'adamw_weight_decay' : 0.01, #default 0.01
         'log_with' : None,
-        'wandb_api_key' : ''
+        'wandb_api_key' : '',
+        'log_tracker_config' : 'none'
     }
     try:
         with open(config_path, 'r') as f:

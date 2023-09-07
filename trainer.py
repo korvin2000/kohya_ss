@@ -509,7 +509,9 @@ def add_logging_args(parser: argparse.ArgumentParser) -> List[str]:
   # wandb_api_key : str
   parser.add_argument('--log_with', type=str, default='all', help='Log with for the project (default: None)')
   parser.add_argument('--wandb_api_key', type=str, default='', help='Wandb api key for the project (default: "")')
-  return ['log_with', 'wandb_api_key']
+  #log_tracker_config : path to config file, default : None
+  parser.add_argument('--log_tracker_config', type=str, default='none', help='Log tracker config for the project (default: "none")')
+  return ['log_with', 'wandb_api_key', 'log_tracker_config']
       
 if __name__ == "__main__":
   extra_args = []

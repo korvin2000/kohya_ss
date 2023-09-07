@@ -500,7 +500,16 @@ def fix_boolean_args(argument_dict : dict) -> dict:
         argument_dict[key] = True
       elif value.lower() == 'false':
         argument_dict[key] = False
+      elif value.lower() == 'none':
+        argument_dict[key] = None
   return argument_dict
+
+def add_logging_args(parser: argparse.ArgumentParser) -> List[str]:
+  # log_with : 'wandb', 'tensorboard', 'all', 'none'
+  # wandb_api_key : str
+  parser.add_argument('--log_with', type=str, default='all', help='Log with for the project (default: None)')
+  parser.add_argument('--wandb_api_key', type=str, default='', help='Wandb api key for the project (default: "")')
+  return ['log_with', 'wandb_api_key']
       
 if __name__ == "__main__":
   extra_args = []
@@ -514,6 +523,7 @@ if __name__ == "__main__":
   extra_args.extend(add_gor_args(parser)) # group orthogonality regularization
   extra_args.extend(add_extra_args(parser)) # seed, keep_tokens, resolution, clip_skip 
   extra_args.extend(add_optimizer_args(parser)) # betas, eps, weight_decay
+  extra_args.extend(add_logging_args(parser)) # log_with, wandb_api_key
   # keep tokens should be used only if first tags(comma separated) are properly tagged and set up in dataset.
 
   args = parser.parse_args()

@@ -114,7 +114,6 @@ def load_default_config(config_path:str):
         'adamw_weight_decay' : 0.01, #default 0.01
         'log_with' : None,
         'wandb_api_key' : '',
-        'log_tracker_config_template' : 'none'
     }
     try:
         with open(config_path, 'r') as f:

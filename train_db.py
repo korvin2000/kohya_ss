@@ -1,6 +1,9 @@
 # DreamBooth training
 # XXX dropped option: fine_tune
 
+import random
+from PIL import Image, ImageOps
+import torchvision.transforms as transforms
 import gc
 import argparse
 import itertools
@@ -31,6 +34,53 @@ from library.custom_train_functions import (
 )
 
 # perlin_noise,
+
+IMAGE_SIZE = 384
+
+def custom_padding(img, expected_size, fill='white'):
+    desired_size = expected_size
+    delta_width = desired_size[0] - img.size[0]
+    delta_height = desired_size[1] - img.size[1]
+    pad_width = delta_width // 2
+    pad_height = delta_height
+    padding = (pad_width, pad_height, delta_width - pad_width, 0)
+    return ImageOps.expand(img, padding, fill=fill)
+
+def make_multiview_image(real_image_list):
+    # input: list[PIL image]
+    # output: PIL image
+    image_list = []
+    for real_image in real_image_list:
+        image = real_image
+
+        (img_width, img_height) = image.size
+        (img_width, img_height) = (int(img_width), int(img_height))
+        longer_size = img_width if img_width >= img_height else img_height
+        image = custom_padding(image, (longer_size,longer_size))
+
+        image = image.resize((IMAGE_SIZE, IMAGE_SIZE))
+        image_list.append(image)
+
+    # 2*2 view
+    multiview_image = Image.new('RGB',(2*IMAGE_SIZE, 2*IMAGE_SIZE), (255,255,255))
+    try:
+        multiview_image.paste(image_list[0],(0,0))
+    except:
+        pass
+    try:
+        multiview_image.paste(image_list[1],(IMAGE_SIZE,0))
+    except:
+        pass
+    try:
+        multiview_image.paste(image_list[2],(0, IMAGE_SIZE))
+    except:
+        pass
+    try:
+        multiview_image.paste(image_list[3],(IMAGE_SIZE, IMAGE_SIZE))
+    except:
+        pass
+    return multiview_image
+
 
 
 def train(args):
@@ -166,6 +216,8 @@ def train(args):
     # dataloaderを準備する
     # DataLoaderのプロセス数：0はメインプロセスになる
     n_workers = min(args.max_data_loader_n_workers, os.cpu_count() - 1)  # cpu_count-1 ただし最大で指定された数まで
+    # minhee
+    # torch.utils.data.DataLoader
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset_group,
         batch_size=1,
@@ -270,6 +322,40 @@ def train(args):
             text_encoder.train()
 
         for step, batch in enumerate(train_dataloader):
+            # minhee: make image multiview
+            if not cache_latents:
+                tmp_latents = batch["images"]
+                # 각각 PIL 이미지로 변환
+                real_image_list = []
+                b_size = tmp_latents.shape[0]
+                transform = transforms.ToPILImage()
+                for i in range(b_size):
+                    tmp_tensor = tmp_latents[i]
+                    output_image = transform(tmp_tensor)
+                    real_image_list.append(output_image)
+
+                totensor = transforms.ToTensor()
+                tmp_tensor_list = []
+                for _ in range(b_size):
+                    # 랜덤하게 이미지 만들기
+                    random.shuffle(real_image_list)
+                    multiview_image = make_multiview_image(real_image_list)
+                    multiview_image_tensor = totensor(multiview_image)
+                    tmp_tensor_list.append(multiview_image_tensor)
+                total_tensor_list = torch.stack(tmp_tensor_list, dim=0).to(accelerator.device)
+                # 합쳐서 다시 "images"에 넣기
+                batch["images"] = total_tensor_list
+
+                # caption 합치기
+                tmp_str = ""
+                for tmp_caption in batch["captions"]:
+                    tmp_str += tmp_caption
+                    if i < b_size - 1:
+                        tmp_str += ", "
+                # 합쳐서 다시 "captions"에 넣기
+                batch["captions"] = [tmp_str] * b_size
+
+
             current_step.value = global_step
             # 指定したステップ数でText Encoderの学習を止める
             if global_step == args.stop_text_encoder_training:

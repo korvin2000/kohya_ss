@@ -1,8 +1,8 @@
 # DreamBooth training
 # XXX dropped option: fine_tune
 
+from matplotlib import pyplot as plt
 import random
-from PIL import Image, ImageOps
 import torchvision.transforms as transforms
 import gc
 import argparse
@@ -35,51 +35,67 @@ from library.custom_train_functions import (
 
 # perlin_noise,
 
+# minhee
+# DataLoader
+class MultiviewDataloader(torch.utils.data.DataLoader):
+    def __init__(self, dataset, batch_size=1, shuffle=False, sampler=None,
+                 batch_sampler=None, num_workers=0, collate_fn=None,
+                 pin_memory=False, drop_last=False, timeout=0,
+                 worker_init_fn=None, persistent_workers=None):
+        super(MultiviewDataloader, self).__init__(
+            dataset, batch_size, shuffle, sampler, batch_sampler,
+            num_workers, collate_fn, pin_memory, drop_last, timeout,
+            worker_init_fn, persistent_workers=persistent_workers
+        )
+
+    def __getitem__(self, index):
+        # x = self.data[index]
+        # y = self.data[index] + 1
+        print("=====__getitem__======")
+        print(self.data[index])
+        return self.data[index]
+
+
+
 IMAGE_SIZE = 384
 
-def custom_padding(img, expected_size, fill='white'):
-    desired_size = expected_size
-    delta_width = desired_size[0] - img.size[0]
-    delta_height = desired_size[1] - img.size[1]
+def custom_padding_tensor(img, expected_width, expected_height):
+    # input: tensor image
+    # get img's size
+    [img_width, img_height] = transforms.functional.get_image_size(img)
+    delta_width = max(expected_width - img_width, 0)
+    delta_height = max(expected_height - img_height, 0)
     pad_width = delta_width // 2
-    pad_height = delta_height
-    padding = (pad_width, pad_height, delta_width - pad_width, 0)
-    return ImageOps.expand(img, padding, fill=fill)
+    pad_height = delta_height // 2
+    # (left, top, right, bottom)
+    pad_transform = transforms.Pad((pad_width, pad_height, pad_width, pad_height), fill=0, padding_mode='constant')
+    return pad_transform(img)
 
-def make_multiview_image(real_image_list):
-    # input: list[PIL image]
-    # output: PIL image
+def make_multiview_image_tensor(real_image_list):
+    # input: list[tensor image]
+    # output: tensor image
     image_list = []
     for real_image in real_image_list:
         image = real_image
 
-        (img_width, img_height) = image.size
-        (img_width, img_height) = (int(img_width), int(img_height))
-        longer_size = img_width if img_width >= img_height else img_height
-        image = custom_padding(image, (longer_size,longer_size))
+        [img_width, img_height] = transforms.functional.get_image_size(image)
+        img_width, img_height = int(img_width), int(img_height)
+        longer_size = max(img_width, img_height)
+        image = custom_padding_tensor(image, longer_size, longer_size)
 
-        image = image.resize((IMAGE_SIZE, IMAGE_SIZE))
+        # resize
+        resize_transform = transforms.Resize((IMAGE_SIZE, IMAGE_SIZE))
+        image = resize_transform(image)
         image_list.append(image)
 
     # 2*2 view
-    multiview_image = Image.new('RGB',(2*IMAGE_SIZE, 2*IMAGE_SIZE), (255,255,255))
-    try:
-        multiview_image.paste(image_list[0],(0,0))
-    except:
-        pass
-    try:
-        multiview_image.paste(image_list[1],(IMAGE_SIZE,0))
-    except:
-        pass
-    try:
-        multiview_image.paste(image_list[2],(0, IMAGE_SIZE))
-    except:
-        pass
-    try:
-        multiview_image.paste(image_list[3],(IMAGE_SIZE, IMAGE_SIZE))
-    except:
-        pass
-    return multiview_image
+    # cat tensor
+    sum_image0 = torch.cat(image_list[:2], dim=1)
+    sum_image1 = torch.cat(image_list[2:], dim=1)
+    total_image = torch.cat([sum_image0, sum_image1], dim=2)
+
+    # output image size: [3, 2*IMAGE_SIZE, 2*IMAGE_SIZE]
+    return total_image
 
 
 
@@ -218,13 +234,13 @@ def train(args):
     n_workers = min(args.max_data_loader_n_workers, os.cpu_count() - 1)  # cpu_count-1 ただし最大で指定された数まで
     # minhee
     # torch.utils.data.DataLoader
-    train_dataloader = torch.utils.data.DataLoader(
+    train_dataloader = MultiviewDataloader(
         train_dataset_group,
         batch_size=1,
         shuffle=True,
         collate_fn=collater,
         num_workers=n_workers,
-        persistent_workers=args.persistent_data_loader_workers,
+        # persistent_workers=args.persistent_data_loader_workers,
     )
 
     # 学習ステップ数を計算する
@@ -325,26 +341,20 @@ def train(args):
             # minhee: make image multiview
             if not cache_latents:
                 tmp_latents = batch["images"]
-                # 각각 PIL 이미지로 변환
-                real_image_list = []
                 b_size = tmp_latents.shape[0]
-                transform = transforms.ToPILImage()
-                for i in range(b_size):
-                    tmp_tensor = tmp_latents[i]
-                    output_image = transform(tmp_tensor)
-                    real_image_list.append(output_image)
 
-                totensor = transforms.ToTensor()
-                tmp_tensor_list = []
-                for _ in range(b_size):
-                    # 랜덤하게 이미지 만들기
-                    random.shuffle(real_image_list)
-                    multiview_image = make_multiview_image(real_image_list)
-                    multiview_image_tensor = totensor(multiview_image)
-                    tmp_tensor_list.append(multiview_image_tensor)
-                total_tensor_list = torch.stack(tmp_tensor_list, dim=0).to(accelerator.device)
+                new_images = []
+                for i in range(b_size):
+                    random_index_list = list(range(b_size))
+                    random.shuffle(random_index_list)
+                    tmp_image_tensor_list = [tmp_latents[index] for index in random_index_list]
+                    multiview_tensor = make_multiview_image_tensor(tmp_image_tensor_list)
+                    new_images.append(multiview_tensor)
+                    # transform = transforms.ToPILImage()
+                    # multiview_image = transform(multiview_tensor)
+                new_images = torch.stack(new_images, dim=0).to(accelerator.device)
                 # 합쳐서 다시 "images"에 넣기
-                batch["images"] = total_tensor_list
+                batch["images"] = new_images
 
                 # caption 합치기
                 tmp_str = ""

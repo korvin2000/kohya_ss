@@ -1122,6 +1122,7 @@ class BaseDataset(torch.utils.data.Dataset):
                     identifier = find_identifier(image_info.image_key)
                     same_identifier_list = self.identifier_dict[identifier]
                     identifier_num = len(same_identifier_list)
+                    print(f'{identifier_num} images in {identifier}')
                     aug_num = min(identifier_num, 4)
                     aug_num = random.randint(1, aug_num)
                     # pick images randomly with same identifier

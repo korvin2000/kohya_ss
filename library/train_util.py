@@ -67,6 +67,10 @@ import library.sai_model_spec as sai_model_spec
 # from library.attention_processors import FlashAttnProcessor
 # from library.hypernetwork import replace_attentions_for_hypernetwork
 from library.original_unet import UNet2DConditionModel
+from library.utils import *
+
+# if you want original kohya, please make it to False
+WANT_MULTIVIEW_AUGMENTATION = True
 
 # Tokenizer: checkpointから読み込むのではなくあらかじめ提供されているものを使う
 TOKENIZER_PATH = "openai/clip-vit-large-patch14"
@@ -544,6 +548,8 @@ class BaseDataset(torch.utils.data.Dataset):
         self.image_data: Dict[str, ImageInfo] = {}
         self.image_to_subset: Dict[str, Union[DreamBoothSubset, FineTuningSubset]] = {}
 
+        self.identifier_dict: Dict[str, list] = {}
+
         self.replacements = {}
 
         # caching
@@ -697,6 +703,16 @@ class BaseDataset(torch.utils.data.Dataset):
     def register_image(self, info: ImageInfo, subset: BaseSubset):
         self.image_data[info.image_key] = info
         self.image_to_subset[info.image_key] = subset
+
+        identifier = find_identifier(info.image_key)
+        self.append_dictionary(identifier, info)
+
+    def append_dictionary(self, identifier: str, image_key: str):
+        # add to self.identifier_dict
+        if identifier in self.identifier_dict:
+            self.identifier_dict[identifier].append(image_key)
+        else:
+            self.identifier_dict[identifier] = [image_key]
 
     def make_buckets(self):
         """
@@ -955,6 +971,19 @@ class BaseDataset(torch.utils.data.Dataset):
                 face_h = int(tokens[-1])
 
         return img, face_cx, face_cy, face_w, face_h
+    
+    def get_face_info(self, subset: BaseSubset, image_path: str):
+        face_cx = face_cy = face_w = face_h = 0
+        if subset.face_crop_aug_range is not None:
+            print(os.path.basename(image_path))
+            tokens = os.path.splitext(os.path.basename(image_path))[0].split("_")
+            if len(tokens) >= 5:
+                face_cx = int(tokens[-4])
+                face_cy = int(tokens[-3])
+                face_w = int(tokens[-2])
+                face_h = int(tokens[-1])
+
+        return face_cx, face_cy, face_w, face_h
 
     # いい感じに切り出す
     def crop_target(self, subset: BaseSubset, image, face_cx, face_cy, face_w, face_h):
@@ -1007,6 +1036,7 @@ class BaseDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self._length
 
+    # BaseDataset's __getitem__
     def __getitem__(self, index):
         bucket = self.bucket_manager.buckets[self.buckets_indices[index].bucket_index]
         bucket_batch_size = self.buckets_indices[index].bucket_batch_size
@@ -1036,6 +1066,8 @@ class BaseDataset(torch.utils.data.Dataset):
 
             flipped = subset.flip_aug and random.random() < 0.5  # not flipped or flipped with 50% chance
 
+            sample_item_list = []
+
             # image/latentsを処理する
             if image_info.latents is not None:  # cache_latents=Trueの場合
                 original_size = image_info.latents_original_size
@@ -1056,7 +1088,23 @@ class BaseDataset(torch.utils.data.Dataset):
                 image = None
             else:
                 # 画像を読み込み、必要ならcropする
-                img, face_cx, face_cy, face_w, face_h = self.load_image_with_face_info(subset, image_info.absolute_path)
+                ##### process image #####
+                if WANT_MULTIVIEW_AUGMENTATION:
+                    identifier = find_identifier(image_info.image_key)
+                    same_identifier_list = self.identifier_dict[identifier]
+                    identifier_num = len(same_identifier_list)
+                    aug_num = min(identifier_num, 4)
+                    aug_num = random.randint(1, aug_num)
+                    # pick images randomly with same identifier
+                    sample_item_list = random.sample(same_identifier_list, aug_num)
+                    sample_image_list = [load_image(item.absolute_path) for item in sample_item_list]
+                    # make multiview image with sampled images
+                    img = make_multiview_image(sample_image_list, image_type="numpy")
+                    face_cx, face_cy, face_w, face_h = self.get_face_info(subset, image_info.absolute_path)
+                else:
+                    # original kohya version
+                    img, face_cx, face_cy, face_w, face_h = self.load_image_with_face_info(subset, image_info.absolute_path)
+                
                 im_h, im_w = img.shape[0:2]
 
                 if self.enable_bucket:
@@ -1114,6 +1162,18 @@ class BaseDataset(torch.utils.data.Dataset):
 
             # captionとtext encoder outputを処理する
             caption = image_info.caption  # default
+
+            ##### process caption #####
+            sample_item_list_len = len(sample_item_list)
+            if WANT_MULTIVIEW_AUGMENTATION and sample_item_list_len > 0:
+                # join caption
+                caption = ", ".join([item.caption for item in sample_item_list])
+                # spit to tokens
+                tokens = [t.strip() for t in caption.strip().split(",")]
+                # delete duplicate
+                tokens = list(set(tokens))
+                caption = ", ".join(tokens)
+
             if image_info.text_encoder_outputs1 is not None:
                 text_encoder_outputs1_list.append(image_info.text_encoder_outputs1)
                 text_encoder_outputs2_list.append(image_info.text_encoder_outputs2)
@@ -1128,17 +1188,21 @@ class BaseDataset(torch.utils.data.Dataset):
                 text_encoder_pool2_list.append(text_encoder_pool2)
                 captions.append(caption)
             else:
-                caption = self.process_caption(subset, image_info.caption)
-                if self.XTI_layers:
-                    caption_layer = []
-                    for layer in self.XTI_layers:
-                        token_strings_from = " ".join(self.token_strings)
-                        token_strings_to = " ".join([f"{x}_{layer}" for x in self.token_strings])
-                        caption_ = caption.replace(token_strings_from, token_strings_to)
-                        caption_layer.append(caption_)
-                    captions.append(caption_layer)
-                else:
+                # if already join caption, don't process it
+                if WANT_MULTIVIEW_AUGMENTATION and sample_item_list_len > 0:
                     captions.append(caption)
+                else:
+                    caption = self.process_caption(subset, image_info.caption)
+                    if self.XTI_layers:
+                        caption_layer = []
+                        for layer in self.XTI_layers:
+                            token_strings_from = " ".join(self.token_strings)
+                            token_strings_to = " ".join([f"{x}_{layer}" for x in self.token_strings])
+                            caption_ = caption.replace(token_strings_from, token_strings_to)
+                            caption_layer.append(caption_)
+                        captions.append(caption_layer)
+                    else:
+                        captions.append(caption)
 
                 if not self.token_padding_disabled:  # this option might be omitted in future
                     if self.XTI_layers:
@@ -1153,7 +1217,6 @@ class BaseDataset(torch.utils.data.Dataset):
                         else:
                             token_caption2 = self.get_input_ids(caption, self.tokenizers[1])
                         input_ids2_list.append(token_caption2)
-
         example = {}
         example["loss_weights"] = torch.FloatTensor(loss_weights)
 

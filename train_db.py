@@ -1,9 +1,6 @@
 # DreamBooth training
 # XXX dropped option: fine_tune
 
-from matplotlib import pyplot as plt
-import random
-import torchvision.transforms as transforms
 import gc
 import argparse
 import itertools
@@ -34,69 +31,6 @@ from library.custom_train_functions import (
 )
 
 # perlin_noise,
-
-# minhee
-# DataLoader
-class MultiviewDataloader(torch.utils.data.DataLoader):
-    def __init__(self, dataset, batch_size=1, shuffle=False, sampler=None,
-                 batch_sampler=None, num_workers=0, collate_fn=None,
-                 pin_memory=False, drop_last=False, timeout=0,
-                 worker_init_fn=None, persistent_workers=None):
-        super(MultiviewDataloader, self).__init__(
-            dataset, batch_size, shuffle, sampler, batch_sampler,
-            num_workers, collate_fn, pin_memory, drop_last, timeout,
-            worker_init_fn, persistent_workers=persistent_workers
-        )
-
-    def __getitem__(self, index):
-        # x = self.data[index]
-        # y = self.data[index] + 1
-        print("=====__getitem__======")
-        print(self.data[index])
-        return self.data[index]
-
-
-
-IMAGE_SIZE = 384
-
-def custom_padding_tensor(img, expected_width, expected_height):
-    # input: tensor image
-    # get img's size
-    [img_width, img_height] = transforms.functional.get_image_size(img)
-    delta_width = max(expected_width - img_width, 0)
-    delta_height = max(expected_height - img_height, 0)
-    pad_width = delta_width // 2
-    pad_height = delta_height // 2
-    # (left, top, right, bottom)
-    pad_transform = transforms.Pad((pad_width, pad_height, pad_width, pad_height), fill=0, padding_mode='constant')
-    return pad_transform(img)
-
-def make_multiview_image_tensor(real_image_list):
-    # input: list[tensor image]
-    # output: tensor image
-    image_list = []
-    for real_image in real_image_list:
-        image = real_image
-
-        [img_width, img_height] = transforms.functional.get_image_size(image)
-        img_width, img_height = int(img_width), int(img_height)
-        longer_size = max(img_width, img_height)
-        image = custom_padding_tensor(image, longer_size, longer_size)
-
-        # resize
-        resize_transform = transforms.Resize((IMAGE_SIZE, IMAGE_SIZE))
-        image = resize_transform(image)
-        image_list.append(image)
-
-    # 2*2 view
-    # cat tensor
-    sum_image0 = torch.cat(image_list[:2], dim=1)
-    sum_image1 = torch.cat(image_list[2:], dim=1)
-    total_image = torch.cat([sum_image0, sum_image1], dim=2)
-
-    # output image size: [3, 2*IMAGE_SIZE, 2*IMAGE_SIZE]
-    return total_image
-
 
 
 def train(args):
@@ -232,7 +166,6 @@ def train(args):
     # dataloaderを準備する
     # DataLoaderのプロセス数：0はメインプロセスになる
     n_workers = min(args.max_data_loader_n_workers, os.cpu_count() - 1)  # cpu_count-1 ただし最大で指定された数まで
-    # minhee
     # torch.utils.data.DataLoader
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset_group,
@@ -338,34 +271,6 @@ def train(args):
             text_encoder.train()
 
         for step, batch in enumerate(train_dataloader):
-            # minhee: make image multiview
-            if not cache_latents:
-                tmp_latents = batch["images"]
-                b_size = tmp_latents.shape[0]
-
-                new_images = []
-                for i in range(b_size):
-                    random_index_list = list(range(b_size))
-                    random.shuffle(random_index_list)
-                    tmp_image_tensor_list = [tmp_latents[index] for index in random_index_list]
-                    multiview_tensor = make_multiview_image_tensor(tmp_image_tensor_list)
-                    new_images.append(multiview_tensor)
-                    # transform = transforms.ToPILImage()
-                    # multiview_image = transform(multiview_tensor)
-                new_images = torch.stack(new_images, dim=0).to(accelerator.device)
-                # 합쳐서 다시 "images"에 넣기
-                batch["images"] = new_images
-
-                # caption 합치기
-                tmp_str = ""
-                for tmp_caption in batch["captions"]:
-                    tmp_str += tmp_caption
-                    if i < b_size - 1:
-                        tmp_str += ", "
-                # 합쳐서 다시 "captions"에 넣기
-                batch["captions"] = [tmp_str] * b_size
-
-
             current_step.value = global_step
             # 指定したステップ数でText Encoderの学習を止める
             if global_step == args.stop_text_encoder_training:

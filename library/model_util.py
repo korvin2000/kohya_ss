@@ -1061,8 +1061,12 @@ def load_models_from_stable_diffusion_checkpoint(v2, ckpt_path, device="cpu", dt
             projection_dim=768,
             torch_dtype="float32",
         )
+        # text_model = CLIPTextModel._from_config(cfg)
+        # info = text_model.load_state_dict(converted_text_encoder_checkpoint)
+
         text_model = CLIPTextModel._from_config(cfg)
-        info = text_model.load_state_dict(converted_text_encoder_checkpoint)
+        info = text_model.load_state_dict(converted_text_encoder_checkpoint, strict=False)
+
     print("loading text encoder:", info)
 
     return text_model, vae, unet

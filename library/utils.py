@@ -55,14 +55,17 @@ def custom_padding(img, expected_width, expected_height, image_type="numpy"):
 def make_multiview_image(real_image_list, image_type="numpy"):
     image_len = len(real_image_list)
     if image_len == 1:
-        # return image self
-        return real_image_list[0]
+        image = real_image_list[0]
     elif image_len == 2:
-        return make_multiview_image_2(real_image_list, image_type)
+        image = make_multiview_image_2(real_image_list, image_type)
     elif image_len == 3:
-        return make_multiview_image_3(real_image_list, image_type)
+        image = make_multiview_image_3(real_image_list, image_type)
     elif image_len == 4:
-        return make_multiview_image_4(real_image_list, image_type)
+        image = make_multiview_image_4(real_image_list, image_type)
+    else:
+        assert False
+ 
+    return image
     
 
 def make_multiview_image_2(real_image_list, image_type="numpy"):

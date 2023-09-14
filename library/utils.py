@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 import numpy as np
 import cv2
 import torch
+import random
 
 
 def fire_in_thread(f, *args, **kwargs):
@@ -74,6 +75,7 @@ def make_multiview_image_2(real_image_list, image_type="numpy"):
     # input: list[image]
     # output: image
     SMALL_IMAGE_SIZE = IMAGE_SIZE // 2
+    concat_type = random.randint(1,2)
     if image_type == "numpy":
         image_list = []
         for real_image in real_image_list:
@@ -87,16 +89,23 @@ def make_multiview_image_2(real_image_list, image_type="numpy"):
             image = cv2.resize(image, dsize=(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
             image_list.append(image)
 
-        # 1*2 view
-        total_image = 255 * np.ones((SMALL_IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
-        # [x,y] shape
-        coordinate_list = [[0, 0], [SMALL_IMAGE_SIZE, 0]]
+        if concat_type == 1: # 1*2 view
+            total_image = 255 * np.ones((SMALL_IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
+            # [x,y] shape
+            coordinate_list = [[0, 0], [SMALL_IMAGE_SIZE, 0]]
+        elif concat_type == 2: # 2*1 view
+            total_image = 255 * np.ones((IMAGE_SIZE, SMALL_IMAGE_SIZE, 3), dtype=np.uint8)
+            coordinate_list = [[0, 0], [0, SMALL_IMAGE_SIZE]]
+        else:
+            assert False
+
         for i, image_item in enumerate(image_list):
             start_x = coordinate_list[i][0]
             end_x = start_x + SMALL_IMAGE_SIZE
             start_y = coordinate_list[i][1]
             end_y = start_y + SMALL_IMAGE_SIZE
             total_image[start_y: end_y, start_x: end_x] = image_item
+
         return total_image
     
 
@@ -106,6 +115,7 @@ def make_multiview_image_3(real_image_list, image_type="numpy"):
     # input: list[image]
     # output: image
     SMALL_IMAGE_SIZE = IMAGE_SIZE // 2
+    concat_type = random.randint(1,4)
     if image_type == "numpy":
         image_list = []
         for index, real_image in enumerate(real_image_list):
@@ -114,11 +124,14 @@ def make_multiview_image_3(real_image_list, image_type="numpy"):
             img_width, img_height = int(img_width), int(img_height)
             longer_size = max(img_width, img_height)
             if index == 0:
-                image = custom_padding(image, longer_size, longer_size * 2, image_type=image_type)
                 # resize
-                image = cv2.resize(image, dsize=(SMALL_IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
-                (img_height, img_width, _) = image.shape
-            else:
+                if concat_type == 1 or concat_type == 2: # left or right
+                    image = custom_padding(image, longer_size, longer_size * 2, image_type=image_type)
+                    image = cv2.resize(image, dsize=(SMALL_IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
+                if concat_type == 3 or concat_type == 4: # top or bottom
+                    image = custom_padding(image, longer_size * 2, longer_size, image_type=image_type)
+                    image = cv2.resize(image, dsize=(IMAGE_SIZE, SMALL_IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
+            else:   
                 image = custom_padding(image, longer_size, longer_size, image_type=image_type)
                 # resize
                 image = cv2.resize(image, dsize=(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
@@ -126,8 +139,20 @@ def make_multiview_image_3(real_image_list, image_type="numpy"):
 
         # 1-2 view
         total_image = 255 * np.ones((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
-        coordinate_list = [[0, 0], [SMALL_IMAGE_SIZE, 0], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
-        size_list = [[SMALL_IMAGE_SIZE, IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+        
+        if concat_type == 1: # 1 left
+            coordinate_list = [[0, 0], [SMALL_IMAGE_SIZE, 0], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+            size_list = [[SMALL_IMAGE_SIZE, IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+        elif concat_type == 2: # 1 right
+            coordinate_list = [[SMALL_IMAGE_SIZE, 0], [0, 0], [0, SMALL_IMAGE_SIZE]]
+            size_list = [[SMALL_IMAGE_SIZE, IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+        elif concat_type == 3: # 1 top
+            coordinate_list = [[0, 0], [0, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+            size_list = [[IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+        elif concat_type == 4: # 1 bottom
+            coordinate_list = [[0, SMALL_IMAGE_SIZE], [0, 0], [SMALL_IMAGE_SIZE, 0]]
+            size_list = [[IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE], [SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE]]
+
         for i, image_item in enumerate(image_list):
             start_x = coordinate_list[i][0]
             end_x = start_x + size_list[i][0]

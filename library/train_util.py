@@ -837,6 +837,10 @@ class BaseDataset(torch.utils.data.Dataset):
 
         self.shuffle_buckets()
         self._length = len(self.buckets_indices)
+        # if WANT_MULTIVIEW_AUGMENTATION:
+        #     self._length = len(self.identifier_dict)
+        # else:
+        #     self._length = len(self.buckets_indices)
 
     def shuffle_buckets(self):
         # set random seed for this epoch
@@ -1122,7 +1126,7 @@ class BaseDataset(torch.utils.data.Dataset):
                     identifier = find_identifier(image_info.image_key)
                     same_identifier_list = self.identifier_dict[identifier]
                     identifier_num = len(same_identifier_list)
-                    print(f'{identifier_num} images in {identifier}')
+                    # print(f'{identifier_num} images in {identifier}')
                     aug_num = min(identifier_num, 4)
                     aug_num = random.randint(1, aug_num)
                     # pick images randomly with same identifier
@@ -1131,6 +1135,14 @@ class BaseDataset(torch.utils.data.Dataset):
                     # make multiview image with sampled images
                     img = make_multiview_image(sample_image_list, image_type="numpy")
                     face_cx, face_cy, face_w, face_h = self.get_face_info(subset, image_info.absolute_path)
+                    
+                    im_h, im_w = img.shape[0:2]
+                    image_info.image_size = im_w, im_h
+                    image_width, image_height = image_info.image_size
+                    image_info.bucket_reso, image_info.resized_size, ar_error = self.bucket_manager.select_bucket(
+                        image_width, image_height
+                    )
+                    
                 else:
                     # original kohya version
                     img, face_cx, face_cy, face_w, face_h = self.load_image_with_face_info(subset, image_info.absolute_path)
@@ -1172,11 +1184,11 @@ class BaseDataset(torch.utils.data.Dataset):
                     img = img[:, ::-1, :].copy()  # copy to avoid negative stride problem
 
                 latents = None
+
                 image = self.image_transforms(img)  # -1.0~1.0のtorch.Tensorになる
 
             images.append(image)
             latents_list.append(latents)
-
             target_size = (image.shape[2], image.shape[1]) if image is not None else (latents.shape[2] * 8, latents.shape[1] * 8)
 
             if not flipped:

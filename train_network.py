@@ -766,6 +766,7 @@ class NetworkTrainer:
         loras = network.unet_loras + network.text_encoder_loras
         org_layer_dict = {}
         for lora in loras:
+            print(f'blockwise lora block name : {lora.lora_name}')
             if lora.is_linear:
                 lora_name = lora.lora_name
                 org_weight = lora.org_weight

@@ -15,8 +15,6 @@ import re
 
 RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers|attentions)_(\d+)_")
 
-RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers|attentions)_(\d+)_")
-
 
 class LoRAModule(torch.nn.Module):
     """
@@ -41,9 +39,11 @@ class LoRAModule(torch.nn.Module):
         if org_module.__class__.__name__ == "Conv2d":
             in_dim = org_module.in_channels
             out_dim = org_module.out_channels
+            self.is_linear = False
         else:
             in_dim = org_module.in_features
             out_dim = org_module.out_features
+            self.is_linear = True
 
         # if limit_rank:
         #   self.lora_dim = min(lora_dim, in_dim, out_dim)
@@ -77,6 +77,7 @@ class LoRAModule(torch.nn.Module):
         self.dropout = dropout
         self.rank_dropout = rank_dropout
         self.module_dropout = module_dropout
+        self.org_weight = self.org_module.weight
 
     def apply_to(self):
         self.org_forward = self.org_module.forward

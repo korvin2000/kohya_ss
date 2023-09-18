@@ -36,9 +36,11 @@ from library.custom_train_functions import (
     apply_gor_loss_precalculated
 )
 from library.group_orthogonalization_normalization import (
-    precalculate_modules_to_check
-)
-
+    precalculate_modules_to_check)
+try:
+    from setproctitle import setproctitle
+except (ImportError, ModuleNotFoundError):
+    setproctitle = lambda x: x
 
 class NetworkTrainer:
     def __init__(self):
@@ -49,7 +51,10 @@ class NetworkTrainer:
     def generate_step_logs(
         self, args: argparse.Namespace, current_loss, avr_loss, lr_scheduler, keys_scaled=None, mean_norm=None, maximum_norm=None
     ):
-        logs = {"loss/current": current_loss, "loss/average": avr_loss}
+        logs = {"loss/total current": current_loss,
+                "loss/total average": avr_loss,
+                "loss/task current": task_loss,
+                "loss/reg average": reg_loss, }
 
         if keys_scaled is not None:
             logs["max_norm/keys_scaled"] = keys_scaled
@@ -325,8 +330,15 @@ class NetworkTrainer:
                 "Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)"
             )
             trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr)
-
-        optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, trainable_params)
+        all_params = []
+        for trainable_param in trainable_params:
+            lr = trainable_param["lr"]
+            params = trainable_param["params"]
+            for param in params:
+                param_dict = {"lr": lr, "params": param}
+                all_params.append(param_dict)
+        optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, all_params)
+        #optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, trainable_params)
 
         # dataloaderを準備する
         # DataLoaderのプロセス数：0はメインプロセスになる
@@ -730,6 +742,47 @@ class NetworkTrainer:
             modules_to_regularize = None
         # print([k for k,v in unet.named_modules() if check_need_to_regularize(v, k, True, ["'up_blocks.*_lora\.up'"])])
         # training loop
+        def merge_conv(lora_down, lora_up):
+            in_rank, in_size, kernel_size, k_ = lora_down.shape
+            out_size, out_rank, _, _ = lora_up.shape
+            assert in_rank == out_rank and kernel_size == k_, f"rank {in_rank} {out_rank} or kernel {kernel_size} {k_} mismatch"
+            merged = lora_up.reshape(out_size, -1) @ lora_down.reshape(in_rank, -1)
+            weight = merged.reshape(out_size, in_size, kernel_size, kernel_size)
+            del lora_up, lora_down
+            return weight
+
+        loras = network.unet_loras + network.text_encoder_loras
+        org_layer_dict = {}
+        for lora in loras:
+            if lora.is_linear:
+                lora_name = lora.lora_name
+                org_weight = lora.org_weight
+                org_layer_dict[lora_name] = org_weight
+            else:
+                lora_name = lora.lora_name
+                org_weight = lora.org_weight
+                org_layer_dict[lora_name] = org_weight
+
+        def get_weight(network):
+            loras = network.unet_loras + network.text_encoder_loras
+            layer_dict = {}
+            for lora in loras:
+                if lora.is_linear:
+                    lora_name = lora.lora_name
+                    up_weight = lora.lora_up.weight
+                    down_weight = lora.lora_down.weight
+                    layer_dict[lora_name] = up_weight @ down_weight
+                else:
+                    lora_name = lora.lora_name
+                    lora_up = lora.lora_up.weight
+                    lora_down = lora.lora_down.weight
+                    layer_dict[lora_name] = merge_conv(lora_down, lora_up)
+            return layer_dict
+
+        # training loop
+        gradient_dict = {}
+        task_loss_dict, reg_loss_dict, total_loss_dict = {}, {}, {}
+
         for epoch in range(num_train_epochs):
             accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
             current_epoch.value = epoch + 1
@@ -807,11 +860,51 @@ class NetworkTrainer:
                     if args.gor_regularization: # required args : gor_num_groups : int, gor_regularization_type: str, gor_name_to_regularize: str, gor_regularize_fc_layers: bool, gor_ortho_decay: float
                         loss = apply_gor_loss_precalculated(loss, modules_to_regularize, args.gor_num_groups, args.gor_regularization_type, args.gor_ortho_decay)
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
+                    task_loss = loss
+                    task_loss_dict[global_step] = loss.item()
+                    # ----------------------------------------------------------------------------------------------------------------
+                    # reg loss
+                    org_means, org_stds = [], []
+                    new_means, new_stds = [], []
+                    layer_dict = get_weight(network)
+                    for layer in layer_dict.keys():
+                        org_weight = org_layer_dict[layer]
+                        new_weight = layer_dict[layer]
+                        org_mean = torch.mean(org_weight)
+                        new_mean = torch.mean(new_weight)
+                        org_std = torch.std(org_weight)
+                        new_std = torch.std(new_weight)
+                        org_means.append(org_mean)
+                        org_stds.append(org_std)
+                        new_means.append(new_mean)
+                        new_stds.append(new_std)
+                    org_means = torch.stack(org_means)
+                    org_stds = torch.stack(org_stds)
+                    new_means = torch.stack(new_means)
+                    new_stds = torch.stack(new_stds)
+                    reg_loss = torch.mean((org_means - new_means) ** 2) + torch.mean((org_stds - new_stds) ** 2)
+                    reg_loss_dict[global_step] = reg_loss.item()
+
+                    # loss = loss * (1-args.reg_loss_weight) + reg_loss * args.reg_loss_weight
+                    loss = loss + reg_loss * args.reg_loss_weight
+                    total_loss_dict[global_step] = loss.item()
 
                     accelerator.backward(loss)
                     if accelerator.sync_gradients and args.max_grad_norm != 0.0:
                         params_to_clip = network.get_trainable_params()
                         accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
+
+                    if is_main_process:
+                        wandb_logs = {}
+                        logs = {}
+                        for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
+                            wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
+                            try:
+                                gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
+                            except:
+                                gradient_dict[layer_name] = []
+                                gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
+                        wandb.log(wandb_logs, step=global_step)
 
                     optimizer.step()
                     lr_scheduler.step()
@@ -910,6 +1003,16 @@ class NetworkTrainer:
 
             print("model saved.")
 
+        def save_dictionary (trg_dict, filename) :
+            save_dir = os.path.join(save_base, filename)
+            with open(save_dir, 'wb') as fw:
+                pickle.dump(trg_dict, fw)
+
+        save_dictionary(gradient_dict, 'gradient_norm.pickle')
+        save_dictionary(task_loss_dict, 'task_loss_dict.pickle')
+        save_dictionary(reg_loss_dict, 'reg_loss_dict.pickle')
+        save_dictionary(total_loss_dict, 'total_loss_dict.pickle')
+
 def add_gor_args(parser: argparse.ArgumentParser)-> None:
     # required args : gor_num_groups : int, gor_regularization_type: str, gor_name_to_regularize: str, gor_regularize_fc_layers: bool, gor_ortho_decay: float
     # num_groups 32, ortho_decay 1e-6, str_filters 'up_blocks.*_lora\.up', reg_type 'inter' or 'intra', regularize_fc_layers : True
@@ -920,6 +1023,9 @@ def add_gor_args(parser: argparse.ArgumentParser)-> None:
     parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
     # whether to enable gor_regularization
     parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
+
+def add_proctitle_args(parser: argparse.ArgumentParser)-> None:
+    parser.add_argument("--proctitle", type=str, default=None, help="process title")
 
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -1001,6 +1107,7 @@ def setup_parser() -> argparse.ArgumentParser:
         help="do not use fp16/bf16 VAE in mixed precision (use float VAE) / mixed precisionでも fp16/bf16 VAEを使わずfloat VAEを使う",
     )
     add_gor_args(parser)
+    add_proctitle_args(parser)
 
     return parser
 
@@ -1010,6 +1117,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
-
+    # if args.proctitle is not None, set process title
+    if args.proctitle is not None:
+        setproctitle(args.proctitle)
     trainer = NetworkTrainer()
     trainer.train(args)

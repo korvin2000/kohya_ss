@@ -9,7 +9,7 @@ import time
 import json
 from multiprocessing import Value
 import toml
-
+import wandb
 from tqdm import tqdm
 import torch
 from accelerate.utils import set_seed
@@ -904,7 +904,7 @@ class NetworkTrainer:
                             except:
                                 gradient_dict[layer_name] = []
                                 gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
-                        wandb.log(wandb_logs, step=global_step)
+                        accelerator.log(wandb_logs, step=global_step)
 
                     optimizer.step()
                     lr_scheduler.step()

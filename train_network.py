@@ -226,8 +226,9 @@ class NetworkTrainer:
                 json.dump(vars(args), f, indent=4)
 
         if args.log_with == "wandb" :
-            wandb.init(project=args.wandb_project,)
-            wandb.run.name = args.wandb_run_name
+            if is_main_process:                
+                wandb.init(project=args.wandb_project,)
+                wandb.run.name = args.wandb_run_name
 
         # mixed precisionに対応した型を用意しておき適宜castする
         weight_dtype, save_dtype = train_util.prepare_dtype(args)
@@ -917,7 +918,8 @@ class NetworkTrainer:
                                 gradient_dict[layer_name] = []
                                 gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
                         if args.log_with == 'wandb':
-                            wandb.log(wandb_logs, step=global_step)
+                            if is_main_process:
+                                wandb.log(wandb_logs, step=global_step)
 
                     optimizer.step()
                     lr_scheduler.step()

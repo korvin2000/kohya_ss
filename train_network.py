@@ -1114,6 +1114,7 @@ def setup_parser() -> argparse.ArgumentParser:
 
 if __name__ == "__main__":
     parser = setup_parser()
+    parser.add_argument("--reg_loss_weight", type=float, default=0)
 
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)

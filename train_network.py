@@ -15,7 +15,7 @@ import torch
 from accelerate.utils import set_seed
 from diffusers import DDPMScheduler
 from library import model_util
-
+import pickle
 import library.train_util as train_util
 from library.train_util import (
     DreamBoothDataset,
@@ -226,7 +226,7 @@ class NetworkTrainer:
                 json.dump(vars(args), f, indent=4)
 
         if args.log_with == "wandb" :
-            if is_main_process:                
+            if is_main_process:
                 wandb.init(project=args.wandb_project,)
                 wandb.run.name = args.wandb_run_name
 
@@ -1019,7 +1019,7 @@ class NetworkTrainer:
 
             print("model saved.")
 
-        def save_dictionary (trg_dict, filename) :
+        def save_dictionary (save_base, trg_dict, filename) :
             save_dir = os.path.join(save_base, filename)
             with open(save_dir, 'wb') as fw:
                 pickle.dump(trg_dict, fw)

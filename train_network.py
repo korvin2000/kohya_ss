@@ -253,14 +253,11 @@ class NetworkTrainer:
                     multiplier = 1.0
                 else:
                     multiplier = args.base_weights_multiplier[i]
-
                 accelerator.print(f"merging module: {weight_path} with multiplier {multiplier}")
-
                 module, weights_sd = network_module.create_network_from_weights(
                     multiplier, weight_path, vae, text_encoder, unet, for_inference=True
                 )
                 module.merge_to(text_encoder, unet, weights_sd, weight_dtype, accelerator.device if args.lowram else "cpu")
-
             accelerator.print(f"all weights merged: {', '.join(args.base_weights)}")
 
         # 学習を準備する
@@ -301,6 +298,7 @@ class NetworkTrainer:
                 vae,
                 text_encoder,
                 unet,
+                block_wise=[1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1] ,
                 neuron_dropout=args.network_dropout,
                 **net_kwargs,
             )

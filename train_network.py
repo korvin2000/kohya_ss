@@ -49,8 +49,8 @@ class NetworkTrainer:
 
     # TODO 他のスクリプトと共通化する
     def generate_step_logs(
-        self, args: argparse.Namespace, current_loss, avr_loss, lr_scheduler, keys_scaled=None, mean_norm=None, maximum_norm=None
-    ):
+        self, args: argparse.Namespace, current_loss, avr_loss, lr_scheduler, keys_scaled=None, mean_norm=None, maximum_norm=None,
+            task_loss=None, reg_loss=None):
         logs = {"loss/total current": current_loss,
                 "loss/total average": avr_loss,
                 "loss/task current": task_loss,
@@ -215,6 +215,12 @@ class NetworkTrainer:
         print("preparing accelerator")
         accelerator = train_util.prepare_accelerator(args)
         is_main_process = accelerator.is_main_process
+
+        if is_main_process:
+            save_base_folder = os.path.join(args.output_dir)
+            os.makedirs(save_base_folder, exist_ok=True)
+            with open(os.path.join(save_base_folder, 'config.json'), 'w') as f:
+                json.dump(vars(args), f, indent=4)
 
         if args.log_with == "wandb" :
             wandb.init(project=args.wandb_project,)
@@ -851,7 +857,6 @@ class NetworkTrainer:
 
                     loss = torch.nn.functional.mse_loss(noise_pred.float(), target.float(), reduction="none")
                     loss = loss.mean([1, 2, 3])
-
                     loss_weights = batch["loss_weights"]  # 各sampleごとのweight
                     loss = loss * loss_weights
 
@@ -961,7 +966,8 @@ class NetworkTrainer:
                     progress_bar.set_postfix(**{**max_mean_logs, **logs})
 
                 if args.logging_dir is not None:
-                    logs = self.generate_step_logs(args, current_loss, avr_loss, lr_scheduler, keys_scaled, mean_norm, maximum_norm)
+                    logs = self.generate_step_logs(args, current_loss, avr_loss, lr_scheduler, keys_scaled, mean_norm, maximum_norm,
+                                                   )
                     accelerator.log(logs, step=global_step)
 
                 if global_step >= args.max_train_steps:

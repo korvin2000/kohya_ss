@@ -42,6 +42,9 @@ try:
 except (ImportError, ModuleNotFoundError):
     setproctitle = lambda x: x
 
+def arg_as_list(s):
+    v = ast.literal_eval(s)
+    return v
 class NetworkTrainer:
     def __init__(self):
         self.vae_scale_factor = 0.18215
@@ -298,7 +301,7 @@ class NetworkTrainer:
                 vae,
                 text_encoder,
                 unet,
-                block_wise=[1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1] ,
+                block_wise=args.block_wise,
                 neuron_dropout=args.network_dropout,
                 **net_kwargs,
             )
@@ -1125,6 +1128,8 @@ if __name__ == "__main__":
     parser.add_argument("--reg_loss_weight", type=float, default=0)
     parser.add_argument("--wandb_project", type=str)
     parser.add_argument("--wandb_run_name", type=str)
+    parser.add_argument("--block_wise", type=arg_as_list,
+                        default = '[1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]')
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
     # if args.proctitle is not None, set process title

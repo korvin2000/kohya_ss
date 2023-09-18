@@ -126,6 +126,7 @@ class NetworkTrainer:
         train_util.sample_images(accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet)
 
     def train(self, args):
+
         session_id = random.randint(0, 2**32)
         training_started_at = time.time()
         train_util.verify_training_args(args)
@@ -214,6 +215,10 @@ class NetworkTrainer:
         print("preparing accelerator")
         accelerator = train_util.prepare_accelerator(args)
         is_main_process = accelerator.is_main_process
+
+        if args.log_with == "wandb" :
+            wandb.init(project=args.wandb_project,)
+            wandb.run.name = args.wandb_run_name
 
         # mixed precisionに対応した型を用意しておき適宜castする
         weight_dtype, save_dtype = train_util.prepare_dtype(args)
@@ -904,7 +909,8 @@ class NetworkTrainer:
                             except:
                                 gradient_dict[layer_name] = []
                                 gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
-                        accelerator.log(wandb_logs, step=global_step)
+                        if args.log_with == 'wandb':
+                            wandb.log(wandb_logs, step=global_step)
 
                     optimizer.step()
                     lr_scheduler.step()
@@ -1029,14 +1035,12 @@ def add_proctitle_args(parser: argparse.ArgumentParser)-> None:
 
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-
     train_util.add_sd_models_arguments(parser)
     train_util.add_dataset_arguments(parser, True, True, True)
     train_util.add_training_arguments(parser, True)
     train_util.add_optimizer_arguments(parser)
     config_util.add_config_arguments(parser)
     custom_train_functions.add_custom_train_arguments(parser)
-
     parser.add_argument("--no_metadata", action="store_true", help="do not save metadata in output model / メタデータを出力先モデルに保存しない")
     parser.add_argument(
         "--save_model_as",

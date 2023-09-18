@@ -885,8 +885,8 @@ class NetworkTrainer:
                     reg_loss = torch.mean((org_means - new_means) ** 2) + torch.mean((org_stds - new_stds) ** 2)
                     reg_loss_dict[global_step] = reg_loss.item()
 
-                    # loss = loss * (1-args.reg_loss_weight) + reg_loss * args.reg_loss_weight
-                    loss = loss + reg_loss * args.reg_loss_weight
+                    loss = loss * (1-args.reg_loss_weight) + reg_loss * args.reg_loss_weight
+                    # loss = loss + reg_loss * args.reg_loss_weight
                     total_loss_dict[global_step] = loss.item()
 
                     accelerator.backward(loss)

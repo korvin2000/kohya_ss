@@ -313,6 +313,7 @@ class NetworkTrainer:
 
         test_epoch = 100
         test_global_step = 100
+        print(f' Inference ')
         self.sample_images(accelerator, args, test_epoch + 1, test_global_step, accelerator.device, vae, tokenizer,
                                    text_encoder, unet)
 

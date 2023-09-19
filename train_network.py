@@ -967,7 +967,9 @@ class NetworkTrainer:
                 saving = (epoch + 1) % args.save_every_n_epochs == 0 and (epoch + 1) < num_train_epochs
                 if is_main_process and saving:
                     ckpt_name = train_util.get_epoch_ckpt_name(args, "." + args.save_model_as, epoch + 1)
-                    accelerator.save_state(ckpt_name)
+                    os.makedirs(args.output_dir, exist_ok=True)
+                    ckpt_file = os.path.join(args.output_dir, ckpt_name)
+                    accelerator.save_state(ckpt_file)
                     #save_model(ckpt_name,
                                #accelerator.unwrap_model(network),
                     #           network,

@@ -41,6 +41,7 @@ def arg_as_list(s):
     v = ast.literal_eval(s)
     return v
 class NetworkTrainer:
+
     def __init__(self):
         self.vae_scale_factor = 0.18215
         self.is_sdxl = False
@@ -105,9 +106,8 @@ class NetworkTrainer:
     def is_text_encoder_outputs_cached(self, args):
         return False
 
-    def cache_text_encoder_outputs_if_needed(
-        self, args, accelerator, unet, vae, tokenizers, text_encoders, data_loader, weight_dtype
-    ):
+    def cache_text_encoder_outputs_if_needed(self, args, accelerator, unet, vae, tokenizers, text_encoders,
+                                             data_loader, weight_dtype):
         for t_enc in text_encoders:
             t_enc.to(accelerator.device)
 
@@ -693,8 +693,7 @@ class NetworkTrainer:
         progress_bar = tqdm(range(args.max_train_steps), smoothing=0, disable=not accelerator.is_local_main_process, desc="steps")
         global_step = 0
 
-        noise_scheduler = DDPMScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", num_train_timesteps=1000, clip_sample=False
+        noise_scheduler = DDPMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", num_train_timesteps=1000, clip_sample=False
         )
         prepare_scheduler_for_custom_training(noise_scheduler, accelerator.device)
         if args.zero_terminal_snr:
@@ -704,9 +703,8 @@ class NetworkTrainer:
             init_kwargs = {}
             if args.log_tracker_config is not None:
                 init_kwargs = toml.load(args.log_tracker_config)
-            accelerator.init_trackers(
-                "network_train" if args.log_tracker_name is None else args.log_tracker_name, init_kwargs=init_kwargs
-            )
+            accelerator.init_trackers("network_train" if args.log_tracker_name is None else args.log_tracker_name,
+                                      init_kwargs=init_kwargs)
 
         loss_list = []
         loss_total = 0.0
@@ -730,7 +728,8 @@ class NetworkTrainer:
             sai_metadata = train_util.get_sai_model_spec(None, args, self.is_sdxl, True, False)
             metadata_to_save.update(sai_metadata)
             unwrapped_nw.save_weights(ckpt_file,
-                                      save_dtype, metadata_to_save)
+                                      save_dtype,
+                                      metadata_to_save)
             if args.huggingface_repo_id is not None:
                 huggingface_util.upload(args, ckpt_file, "/" + ckpt_name, force_sync_upload=force_sync_upload)
 
@@ -813,18 +812,15 @@ class NetworkTrainer:
                     with torch.set_grad_enabled(train_text_encoder):
                         # Get the text embedding for conditioning
                         if args.weighted_captions:
-                            text_encoder_conds = get_weighted_text_embeddings(
-                                tokenizer,
+                            text_encoder_conds = get_weighted_text_embeddings(tokenizer,
                                 text_encoder,
                                 batch["captions"],
                                 accelerator.device,
                                 args.max_token_length // 75 if args.max_token_length else 1,
-                                clip_skip=args.clip_skip,
-                            )
+                                clip_skip=args.clip_skip,)
                         else:
-                            text_encoder_conds = self.get_text_cond(
-                                args, accelerator, batch, tokenizers, text_encoders, weight_dtype
-                            )
+                            text_encoder_conds = self.get_text_cond(args, accelerator, batch, tokenizers,
+                                                                    text_encoders, weight_dtype)
 
                     # Sample noise, sample a random timestep for each image, and add noise to the latents,
                     # with noise offset and/or multires noise if specified
@@ -999,7 +995,6 @@ class NetworkTrainer:
         if is_main_process:
             ckpt_name = train_util.get_last_ckpt_name(args, "." + args.save_model_as)
             save_model(ckpt_name, network, global_step, num_train_epochs, force_sync_upload=True)
-
             print("model saved.")
 
         def save_dictionary (save_base, trg_dict, filename) :

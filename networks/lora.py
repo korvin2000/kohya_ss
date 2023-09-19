@@ -1095,13 +1095,20 @@ class LoRANetwork(torch.nn.Module):
             metadata = None
         state_dict = self.state_dict()
 
-        #if dtype is not None:
         for key in list(state_dict.keys()):
-            v = state_dict[key]
-            v = v.detach().clone().to("cpu")
-            if dtype is not None:
-                v =v.to(dtype)
-            state_dict[key] = v
+            print(f'when save, key name : {key}')
+            if key.endswith('org_weight') or key.endswith('is_linear'):
+                del state_dict[key]
+
+        # for keys, if name matches ('org_weight', 'is_linear') then remove it
+        if dtype is not None:
+            for key in list(state_dict.keys()):
+                v = state_dict[key]
+                v = v.detach().clone().to("cpu")
+                if dtype is not None:
+                    v =v.to(dtype)
+                state_dict[key] = v
+        # finally, remove the added attributes
 
         if os.path.splitext(file)[1] == ".safetensors":
             from safetensors.torch import save_file

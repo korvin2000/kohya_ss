@@ -192,7 +192,7 @@ class NetworkTrainer:
                 accelerator.print(f"merging module: {weight_path} with multiplier {multiplier}")
                 parent, child = os.path.split(weight_path)
                 name, ext = os.path.splitext(child)
-                from safetensors import load_file
+                from safetensors.torch import load_file, safe_open
                 weights_sd = load_file(weight_path)
                 print(f'weights_sd: {weights_sd}')
 

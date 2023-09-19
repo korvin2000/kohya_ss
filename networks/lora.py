@@ -1094,12 +1094,9 @@ class LoRANetwork(torch.nn.Module):
         if metadata is not None and len(metadata) == 0:
             metadata = None
         state_dict = self.state_dict()
-
         for key in list(state_dict.keys()):
-            print(f'when save, key name : {key}')
             if key.endswith('org_weight') or key.endswith('is_linear'):
                 del state_dict[key]
-
         # for keys, if name matches ('org_weight', 'is_linear') then remove it
         if dtype is not None:
             for key in list(state_dict.keys()):
@@ -1109,7 +1106,6 @@ class LoRANetwork(torch.nn.Module):
                     v =v.to(dtype)
                 state_dict[key] = v
         # finally, remove the added attributes
-
         if os.path.splitext(file)[1] == ".safetensors":
             from safetensors.torch import save_file
             from library import train_util
@@ -1119,7 +1115,6 @@ class LoRANetwork(torch.nn.Module):
             model_hash, legacy_hash = train_util.precalculate_safetensors_hashes(state_dict, metadata)
             metadata["sshs_model_hash"] = model_hash
             metadata["sshs_legacy_hash"] = legacy_hash
-
             save_file(state_dict, file, metadata)
         else:
             torch.save(state_dict, file)

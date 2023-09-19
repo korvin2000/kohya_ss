@@ -190,8 +190,9 @@ class NetworkTrainer:
                 else:
                     multiplier = args.base_weights_multiplier[i]
                 accelerator.print(f"merging module: {weight_path} with multiplier {multiplier}")
-                module, weights_sd = network_module.create_network_from_weights(
-                    multiplier, weight_path, block_wise, vae, text_encoder, unet, for_inference=True)
+                module, weights_sd = network_module.create_network_from_weights(multiplier, weight_path,
+                                                                                block_wise, vae, text_encoder, unet,
+                                                                                for_inference=True)
                 module.merge_to(text_encoder, unet, weights_sd, weight_dtype,
                                 accelerator.device if args.lowram else "cpu")
             accelerator.print(f"all weights merged: {', '.join(args.base_weights)}")
@@ -315,7 +316,7 @@ class NetworkTrainer:
         test_global_step = 100
         print(f' Inference ')
         self.sample_images(accelerator, args, test_epoch + 1, test_global_step, accelerator.device, vae, tokenizer,
-                                   text_encoder, unet)
+                            text_encoder, unet)
 
 
 def add_gor_args(parser: argparse.ArgumentParser) -> None:

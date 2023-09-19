@@ -193,6 +193,7 @@ class LoRAInfModule(LoRAModule):
             weight = weight + self.multiplier * conved * self.scale
 
         # set weight to org_module
+        print(f'origin + lora weight : {weight.shape}')
         org_sd["weight"] = weight.to(dtype)
         self.org_module.load_state_dict(org_sd)
 
@@ -733,12 +734,10 @@ def create_network_from_weights(multiplier, file, block_wise, vae, text_encoder,
             modules_alpha[key] = modules_dim[key]
 
     module_class = LoRAInfModule if for_inference else LoRAModule
-
-    network = LoRANetwork(
-        text_encoder, unet,
-        block_wise=block_wise,
-        multiplier=multiplier, modules_dim=modules_dim, modules_alpha=modules_alpha, module_class=module_class
-    )
+    print(f'module_class : {module_class.__class__.__name__}')
+    network = LoRANetwork(text_encoder, unet,
+                          block_wise=block_wise,
+                          multiplier=multiplier, modules_dim=modules_dim, modules_alpha=modules_alpha, module_class=module_class)
 
     # block lr
     down_lr_weight, mid_lr_weight, up_lr_weight = parse_block_lr_kwargs(kwargs)
@@ -984,17 +983,14 @@ class LoRANetwork(torch.nn.Module):
                 apply_text_encoder = True
             elif key.startswith(LoRANetwork.LORA_PREFIX_UNET):
                 apply_unet = True
-
         if apply_text_encoder:
             print("enable LoRA for text encoder")
         else:
             self.text_encoder_loras = []
-
         if apply_unet:
             print("enable LoRA for U-Net")
         else:
             self.unet_loras = []
-
         for lora in self.text_encoder_loras + self.unet_loras:
             sd_for_lora = {}
             for key in weights_sd.keys():

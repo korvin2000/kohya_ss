@@ -1029,4 +1029,4 @@ if __name__ == "__main__":
     if args.proctitle is not None:
         setproctitle(args.proctitle)
     trainer = NetworkTrainer()
-    trainer.train(args)
+    trainer.inference(args)

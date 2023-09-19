@@ -17,14 +17,9 @@ from diffusers import DDPMScheduler
 from library import model_util
 import pickle
 import library.train_util as train_util
-from library.train_util import (
-    DreamBoothDataset,
-)
+from library.train_util import (    DreamBoothDataset,)
 import library.config_util as config_util
-from library.config_util import (
-    ConfigSanitizer,
-    BlueprintGenerator,
-)
+from library.config_util import (    ConfigSanitizer,    BlueprintGenerator,)
 import library.huggingface_util as huggingface_util
 import library.custom_train_functions as custom_train_functions
 from library.custom_train_functions import (
@@ -727,17 +722,15 @@ class NetworkTrainer:
         def save_model(ckpt_name, unwrapped_nw, steps, epoch_no, force_sync_upload=False):
             os.makedirs(args.output_dir, exist_ok=True)
             ckpt_file = os.path.join(args.output_dir, ckpt_name)
-
             accelerator.print(f"\nsaving checkpoint: {ckpt_file}")
             metadata["ss_training_finished_at"] = str(time.time())
             metadata["ss_steps"] = str(steps)
             metadata["ss_epoch"] = str(epoch_no)
-
             metadata_to_save = minimum_metadata if args.no_metadata else metadata
             sai_metadata = train_util.get_sai_model_spec(None, args, self.is_sdxl, True, False)
             metadata_to_save.update(sai_metadata)
-
-            unwrapped_nw.save_weights(ckpt_file, save_dtype, metadata_to_save)
+            unwrapped_nw.save_weights(ckpt_file,
+                                      save_dtype, metadata_to_save)
             if args.huggingface_repo_id is not None:
                 huggingface_util.upload(args, ckpt_file, "/" + ckpt_name, force_sync_upload=force_sync_upload)
 
@@ -746,8 +739,7 @@ class NetworkTrainer:
             if os.path.exists(old_ckpt_file):
                 accelerator.print(f"removing old checkpoint: {old_ckpt_file}")
                 os.remove(old_ckpt_file)
-                
-                
+
         if args.gor_regularization:
             modules_to_regularize = precalculate_modules_to_check(network.unet_loras, args.gor_name_to_regularize, args.gor_regularize_fc_layers)
             accelerator.print(f"modules to regularize: {len(modules_to_regularize)}")
@@ -800,30 +792,24 @@ class NetworkTrainer:
         for epoch in range(num_train_epochs):
             accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
             current_epoch.value = epoch + 1
-
             metadata["ss_epoch"] = str(epoch + 1)
-
             network.on_epoch_start(text_encoder, unet)
-
             for step, batch in enumerate(train_dataloader):
                 current_step.value = global_step
                 with accelerator.accumulate(network):
                     on_step_start(text_encoder, unet)
-
                     with torch.no_grad():
                         if "latents" in batch and batch["latents"] is not None:
                             latents = batch["latents"].to(accelerator.device)
                         else:
                             # latentに変換
                             latents = vae.encode(batch["images"].to(dtype=vae_dtype)).latent_dist.sample()
-
                             # NaNが含まれていれば警告を表示し0に置き換える
                             if torch.any(torch.isnan(latents)):
                                 accelerator.print("NaN found in latents, replacing with zeros")
                                 latents = torch.where(torch.isnan(latents), torch.zeros_like(latents), latents)
                         latents = latents * self.vae_scale_factor
                     b_size = latents.shape[0]
-
                     with torch.set_grad_enabled(train_text_encoder):
                         # Get the text embedding for conditioning
                         if args.weighted_captions:
@@ -901,7 +887,6 @@ class NetworkTrainer:
                     loss = loss * (1-args.reg_loss_weight) + reg_loss * args.reg_loss_weight
                     # loss = loss + reg_loss * args.reg_loss_weight
                     total_loss_dict[global_step] = loss.item()
-
                     accelerator.backward(loss)
                     if accelerator.sync_gradients and args.max_grad_norm != 0.0:
                         params_to_clip = network.get_trainable_params()
@@ -927,8 +912,7 @@ class NetworkTrainer:
 
                 if args.scale_weight_norms:
                     keys_scaled, mean_norm, maximum_norm = network.apply_max_norm_regularization(
-                        args.scale_weight_norms, accelerator.device
-                    )
+                        args.scale_weight_norms, accelerator.device)
                     max_mean_logs = {"Keys Scaled": keys_scaled, "Average key norm": mean_norm}
                 else:
                     keys_scaled, mean_norm, maximum_norm = None, None, None
@@ -937,16 +921,14 @@ class NetworkTrainer:
                 if accelerator.sync_gradients:
                     progress_bar.update(1)
                     global_step += 1
-
                     self.sample_images(accelerator, args, None, global_step, accelerator.device, vae, tokenizer, text_encoder, unet)
-
                     # 指定ステップごとにモデルを保存
                     if args.save_every_n_steps is not None and global_step % args.save_every_n_steps == 0:
                         accelerator.wait_for_everyone()
                         if accelerator.is_main_process:
                             ckpt_name = train_util.get_step_ckpt_name(args, "." + args.save_model_as, global_step)
-                            save_model(ckpt_name, accelerator.unwrap_model(network), global_step, epoch)
-
+                            save_model(ckpt_name,
+                                       accelerator.unwrap_model(network), global_step, epoch)
                             if args.save_state:
                                 train_util.save_and_remove_state_stepwise(args, accelerator, global_step)
 
@@ -988,7 +970,8 @@ class NetworkTrainer:
                 saving = (epoch + 1) % args.save_every_n_epochs == 0 and (epoch + 1) < num_train_epochs
                 if is_main_process and saving:
                     ckpt_name = train_util.get_epoch_ckpt_name(args, "." + args.save_model_as, epoch + 1)
-                    save_model(ckpt_name, accelerator.unwrap_model(network), global_step, epoch + 1)
+                    save_model(ckpt_name, accelerator.unwrap_model(network),
+                               global_step, epoch + 1)
 
                     remove_epoch_no = train_util.get_remove_epoch_no(args, epoch + 1)
                     if remove_epoch_no is not None:

@@ -190,9 +190,12 @@ class NetworkTrainer:
                 else:
                     multiplier = args.base_weights_multiplier[i]
                 accelerator.print(f"merging module: {weight_path} with multiplier {multiplier}")
+                parent, child = os.path.split(args.base_weights)
+                name, ext = os.path.splitext(child)
                 print(os.path.splitext(args.base_weights)[1])
                 from safetensors import load_file
                 weights_sd = load_file(args.base_weights)
+                print(f'weights_sd: {weights_sd}')
 
 
 

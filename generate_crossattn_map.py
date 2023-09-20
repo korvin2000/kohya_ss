@@ -2358,7 +2358,8 @@ def main(args):
                 for i, block in enumerate(BLOCKS):
                     for layer in weights_sd.keys():
                         if block in layer:
-                            print(f'using block : {block}')
+                            if 'mid' in layer :
+                                print(f'{layer} : {weights_sd[layer]}')
                             block_wise[i] = 1
                 print(f'final block_wise : {block_wise}')
                 network, weights_sd = imported_module.create_network_from_weights(network_mul, network_weight,

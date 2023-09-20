@@ -880,7 +880,7 @@ class LoRANetwork(torch.nn.Module):
                             else :
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
-                                        print(f'{block} is loading')
+                                        print(f'{block} is loading ')
                                         lora = module_class(lora_name,
                                                             child_module,
                                                             self.multiplier,

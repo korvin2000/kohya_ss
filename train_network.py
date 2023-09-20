@@ -1,4 +1,4 @@
-import importlib
+import importlib, wandb
 import argparse
 import gc
 import math
@@ -34,6 +34,9 @@ from library.custom_train_functions import (
     scale_v_prediction_loss_like_noise_prediction,
     add_v_prediction_like_loss,
 )
+from setproctitle import *
+
+
 def arg_as_list(s):
     import ast
     v = ast.literal_eval(s)
@@ -121,6 +124,11 @@ class NetworkTrainer:
         train_util.sample_images(accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet)
 
     def train(self, args):
+
+        if args.process_title :
+            setproctitle(args.process_title)
+        else :
+            setproctitle('parksooyeon')
 
         session_id = random.randint(0, 2**32)
         training_started_at = time.time()
@@ -211,7 +219,13 @@ class NetworkTrainer:
         accelerator = train_util.prepare_accelerator(args)
         is_main_process = accelerator.is_main_process
 
-        # mixed precisionに対応した型を用意しておき適宜castする
+        save_base_dir = args.output_dir
+        _, folder_name = os.path.split(save_base_dir)
+        if is_main_process:
+            print(" make wandb process log file")
+            wandb.init(project=args.wandb_init_name)
+            wandb.run.name = folder_name
+
         weight_dtype, save_dtype = train_util.prepare_dtype(args)
         vae_dtype = torch.float32 if args.no_half_vae else weight_dtype
 
@@ -322,12 +336,17 @@ class NetworkTrainer:
         try:
             trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr, args.learning_rate)
         except TypeError:
-            accelerator.print(
-                "Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)"
-            )
+            accelerator.print("Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)")
             trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr)
 
-        optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, trainable_params)
+        all_params = []
+        for trainable_param in trainable_params:
+            lr = trainable_param["lr"]
+            params = trainable_param["params"]
+            for param in params:
+                param_dict = {"lr": lr, "params": param}
+                all_params.append(param_dict)
+        optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, all_params)
 
         # dataloaderを準備する
         # DataLoaderのプロセス数：0はメインプロセスになる
@@ -723,6 +742,8 @@ class NetworkTrainer:
                 os.remove(old_ckpt_file)
 
         # training loop
+        if is_main_process :
+            gradient_dict = {}
         for epoch in range(num_train_epochs):
             accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
             current_epoch.value = epoch + 1
@@ -735,21 +756,16 @@ class NetworkTrainer:
                 current_step.value = global_step
                 with accelerator.accumulate(network):
                     on_step_start(text_encoder, unet)
-
                     with torch.no_grad():
                         if "latents" in batch and batch["latents"] is not None:
                             latents = batch["latents"].to(accelerator.device)
                         else:
-                            # latentに変換
                             latents = vae.encode(batch["images"].to(dtype=vae_dtype)).latent_dist.sample()
-
-                            # NaNが含まれていれば警告を表示し0に置き換える
                             if torch.any(torch.isnan(latents)):
                                 accelerator.print("NaN found in latents, replacing with zeros")
                                 latents = torch.where(torch.isnan(latents), torch.zeros_like(latents), latents)
                         latents = latents * self.vae_scale_factor
                     b_size = latents.shape[0]
-
                     with torch.set_grad_enabled(train_text_encoder):
                         # Get the text embedding for conditioning
                         if args.weighted_captions:
@@ -804,6 +820,18 @@ class NetworkTrainer:
                         params_to_clip = network.get_trainable_params()
                         accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
 
+                    if is_main_process :
+                        i = 0
+                        wandb_logs = {}
+                        for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
+                            wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
+                            try:
+                                gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
+                            except:
+                                gradient_dict[layer_name] = []
+                                gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
+
+                        wandb.log(wandb_logs, step=global_step)
                     optimizer.step()
                     lr_scheduler.step()
                     optimizer.zero_grad(set_to_none=True)
@@ -820,7 +848,6 @@ class NetworkTrainer:
                 if accelerator.sync_gradients:
                     progress_bar.update(1)
                     global_step += 1
-
                     self.sample_images(accelerator, args, None, global_step, accelerator.device, vae, tokenizer, text_encoder, unet)
                     """
                     # 指定ステップごとにモデルを保存
@@ -893,17 +920,21 @@ class NetworkTrainer:
 
         if is_main_process:
             network = accelerator.unwrap_model(network)
-
         accelerator.end_training()
-
         if is_main_process and args.save_state:
             train_util.save_state_on_train_end(args, accelerator)
-
         if is_main_process:
+            print("model saved.")
             ckpt_name = train_util.get_last_ckpt_name(args, "." + args.save_model_as)
             save_model(ckpt_name, network, global_step, num_train_epochs, force_sync_upload=True)
 
-            print("model saved.")
+            print("gradient recording")
+            record_save_dir = os.path.join(args.output_dir, "record")
+            os.makedirs(record_save_dir, exist_ok=True)
+            gradient_save_dir = os.path.join(record_save_dir, "gradient_norm.pickle")
+            import pickle
+            with open(gradient_save_dir, 'wb') as fw:
+                pickle.dump(gradient_dict, fw)
 
 
 def setup_parser() -> argparse.ArgumentParser:
@@ -987,13 +1018,14 @@ def setup_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
-
 if __name__ == "__main__":
     parser = setup_parser()
     parser.add_argument("--block_wise", type = arg_as_list,
                         default = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,])
     parser.add_argument("--unwrap", action = 'store_true')
+    parser.add_argument("--process_title", type=str, default = 'parksooyeon')
+    parser.add_argument("--wandb_init_name", type=str)
+
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

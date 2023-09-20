@@ -740,7 +740,6 @@ def create_network_from_weights(multiplier, file, block_wise, vae, text_encoder,
 
 class LoRANetwork(torch.nn.Module):
     NUM_OF_BLOCKS = 12  # フルモデル相当でのup,downの層の数
-
     UNET_TARGET_REPLACE_MODULE = ["Transformer2DModel"]
     UNET_TARGET_REPLACE_MODULE_CONV2D_3X3 = ["ResnetBlock2D", "Downsample2D", "Upsample2D"]
     TEXT_ENCODER_TARGET_REPLACE_MODULE = ["CLIPAttention", "CLIPMLP"]
@@ -881,6 +880,7 @@ class LoRANetwork(torch.nn.Module):
                             else :
                                 for block in BLOCKS :
                                     if block in lora_name :
+                                        print(f'[{lora_name}] will be lorad')
                                         lora = module_class(lora_name,
                                                             child_module,
                                                             self.multiplier,

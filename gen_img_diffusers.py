@@ -2264,7 +2264,7 @@ def main(args):
         scheduler.config.clip_sample = True
 
     # deviceを決定する
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # "mps"を考量してない
+    device = args.device
 
     # custom pipelineをコピったやつを生成する
     if args.vae_slices:
@@ -2334,7 +2334,6 @@ def main(args):
                     network, weights_sd = imported_module.create_network_from_weights(
                         network_mul, network_weight, vae, text_encoder, unet, for_inference=True, **net_kwargs
                     )
-
             else:
                 raise ValueError("No weight. Weight is required.")
             if network is None:
@@ -2344,14 +2343,17 @@ def main(args):
                 print("network is not mergiable. ignore merge option.")
 
             if not args.network_merge or not mergeable:
+                # 1) original network
+                # Check weights_sd
+                #for layer in weights_sd.keys():
+                #    print(f'[{layer}] : {weights_sd[layer].shape}')
                 network.apply_to(text_encoder, unet)
+                # 2) loaded network
                 info = network.load_state_dict(weights_sd, False)  # network.load_weightsを使うようにするとよい
-                print(f"weights are loaded: {info}")
-
+                print(f"weights are loaded")
                 if args.opt_channels_last:
                     network.to(memory_format=torch.channels_last)
                 network.to(dtype).to(device)
-
                 if network_pre_calc:
                     print("backup original weights")
                     network.backup_weights()
@@ -2360,6 +2362,12 @@ def main(args):
                 network.merge_to(text_encoder, unet, weights_sd, dtype, device)
     else:
         networks = []
+    org_state_dict = network.state_dict()
+    for layer in org_state_dict.keys() :
+        if 'org_weight' not in layer :
+            print(f'layer : {layer}')
+            network.state_dict()[layer] = weights_sd[layer]
+
 
     # upscalerの指定があれば取得する
     upscaler = None
@@ -3421,5 +3429,6 @@ if __name__ == "__main__":
     parser = setup_parser()
     parser.add_argument("--my_test", action = 'store_true')
     parser.add_argument("--block_wise", default = [1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1], type = arg_as_list)
+    parser.add_argument("--device", default = 'cuda')
     args = parser.parse_args()
     main(args)

@@ -727,6 +727,8 @@ class NetworkTrainer:
             metadata_to_save = minimum_metadata if args.no_metadata else metadata
             sai_metadata = train_util.get_sai_model_spec(None, args, self.is_sdxl, True, False)
             metadata_to_save.update(sai_metadata)
+
+
             unwrapped_nw.save_weights(ckpt_file,
                                       save_dtype,
                                       metadata_to_save)
@@ -965,20 +967,24 @@ class NetworkTrainer:
             # 指定エポックごとにモデルを保存
             if args.save_every_n_epochs is not None:
                 saving = (epoch + 1) % args.save_every_n_epochs == 0 and (epoch + 1) < num_train_epochs
+
                 if is_main_process and saving:
                     ckpt_name = train_util.get_epoch_ckpt_name(args, "." + args.save_model_as, epoch + 1)
-                    os.makedirs(args.output_dir, exist_ok=True)
-                    ckpt_file = os.path.join(args.output_dir, ckpt_name)
-                    accelerator.save_state(ckpt_file)
-                    #save_model(ckpt_name,
-                               #accelerator.unwrap_model(network),
-                    #           network,
-                     #          global_step, epoch + 1)
+                    print(f"ckpt_name : {ckpt_name}")
+                    #ckpt_file = os.path.join(args.output_dir, ckpt_name)
+                    #accelerator.save_state(ckpt_file)
+                    unwrap_model = accelerator.unwrap_model(network)
+                    save_model(ckpt_name,
+                               unwrap_model,
+                               #network,
+                               global_step, epoch + 1)
 
+                    print("save Lora weights")
                     remove_epoch_no = train_util.get_remove_epoch_no(args, epoch + 1)
                     if remove_epoch_no is not None:
                         remove_ckpt_name = train_util.get_epoch_ckpt_name(args, "." + args.save_model_as, remove_epoch_no)
                         remove_model(remove_ckpt_name)
+                        print("why removing model..?")
 
                     if args.save_state:
                         train_util.save_and_remove_state_on_epoch_end(args, accelerator, epoch + 1)

@@ -79,11 +79,14 @@ class LoRAModule(torch.nn.Module):
         # same as microsoft's
         torch.nn.init.kaiming_uniform_(self.lora_down.weight, a=math.sqrt(5))
         torch.nn.init.zeros_(self.lora_up.weight)
+
         self.multiplier = multiplier
         self.org_module = org_module  # remove in applying
         self.dropout = dropout
         self.rank_dropout = rank_dropout
         self.module_dropout = module_dropout
+
+        # what i added ........................................................................
         self.org_weight = self.org_module.weight
 
     def apply_to(self):

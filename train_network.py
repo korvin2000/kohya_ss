@@ -289,7 +289,6 @@ class NetworkTrainer:
                 net_kwargs[key] = value
 
         # if a new network is added in future, add if ~ then blocks for each network (;'∀')
-        print(f'blockwise : {args.block_wise}')
         if args.dim_from_weights:
             network, _ = network_module.create_network_from_weights(1, args.network_weights, vae, text_encoder, unet, **net_kwargs)
         else:

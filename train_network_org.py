@@ -281,6 +281,7 @@ class NetworkTrainer:
                 vae,
                 text_encoder,
                 unet,
+                block_wise=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,],
                 neuron_dropout=args.network_dropout,
                 **net_kwargs,
             )
@@ -818,7 +819,7 @@ class NetworkTrainer:
                     global_step += 1
 
                     self.sample_images(accelerator, args, None, global_step, accelerator.device, vae, tokenizer, text_encoder, unet)
-
+                    """
                     # 指定ステップごとにモデルを保存
                     if args.save_every_n_steps is not None and global_step % args.save_every_n_steps == 0:
                         accelerator.wait_for_everyone()
@@ -833,6 +834,7 @@ class NetworkTrainer:
                             if remove_step_no is not None:
                                 remove_ckpt_name = train_util.get_step_ckpt_name(args, "." + args.save_model_as, remove_step_no)
                                 remove_model(remove_ckpt_name)
+                    """
 
                 current_loss = loss.detach().item()
                 if epoch == 0:
@@ -866,7 +868,10 @@ class NetworkTrainer:
                 saving = (epoch + 1) % args.save_every_n_epochs == 0 and (epoch + 1) < num_train_epochs
                 if is_main_process and saving:
                     ckpt_name = train_util.get_epoch_ckpt_name(args, "." + args.save_model_as, epoch + 1)
-                    save_model(ckpt_name, accelerator.unwrap_model(network), global_step, epoch + 1)
+                    if args.unwrap :
+                        save_model(ckpt_name, accelerator.unwrap_model(network), global_step, epoch + 1)
+                    else :
+                        save_model(ckpt_name, network, global_step, epoch + 1)
 
                     remove_epoch_no = train_util.get_remove_epoch_no(args, epoch + 1)
                     if remove_epoch_no is not None:
@@ -982,7 +987,7 @@ def setup_parser() -> argparse.ArgumentParser:
 
 if __name__ == "__main__":
     parser = setup_parser()
-
+    parser.add_argument("--unwrap", action = 'store_true')
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

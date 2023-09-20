@@ -2326,6 +2326,7 @@ def main(args):
                         print(f"metadata for: {network_weight}: {metadata}")
                 if args.my_test :
                     block_wise = args.block_wise
+                    print(f'block_wise : {block_wise}')
                     network, weights_sd = imported_module.create_network_from_weights(
                         network_mul, network_weight, block_wise,
                         vae, text_encoder, unet, for_inference=True, **net_kwargs)
@@ -3411,10 +3412,14 @@ def setup_parser() -> argparse.ArgumentParser:
 
     return parser
 
+def arg_as_list(s):
+    import ast
+    v = ast.literal_eval(s)
+    return v
 
 if __name__ == "__main__":
     parser = setup_parser()
     parser.add_argument("--my_test", action = 'store_true')
-    parser.add_argument("--block_wise", default = [1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1])
+    parser.add_argument("--block_wise", default = [1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1], type = arg_as_list)
     args = parser.parse_args()
     main(args)

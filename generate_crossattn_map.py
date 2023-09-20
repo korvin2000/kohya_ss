@@ -2461,6 +2461,7 @@ def main(args):
     print(f' (4) call pre-made image')
     pil_img = Image.open(args.image_dir).convert("RGB")
     latent = image2latent(pil_img, vae, device)
+    t=0
     unet(latent, t, encoder_hidden_states=text_embeddings_src)["sample"]
     attention_maps_src = attention_storer.step_store
     elems = []

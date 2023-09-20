@@ -3439,7 +3439,6 @@ def arg_as_list(s):
 if __name__ == "__main__":
     parser = setup_parser()
     parser.add_argument("--my_test", action = 'store_true')
-    parser.add_argument("--block_wise", default = [1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1], type = arg_as_list)
     parser.add_argument("--device", default = 'cuda')
     args = parser.parse_args()
     main(args)

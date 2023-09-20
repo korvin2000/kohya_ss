@@ -878,8 +878,8 @@ class LoRANetwork(torch.nn.Module):
                                                     module_dropout=module_dropout,)
                                 loras.append(lora)
                             else :
-                                for block in BLOCKS :
-                                    if block in lora_name :
+                                for i, block in enumerate(BLOCKS) :
+                                    if block in lora_name and i == 1:
                                         print(f'[{lora_name}] will be lorad')
                                         lora = module_class(lora_name,
                                                             child_module,

@@ -15,9 +15,14 @@ import re
 
 RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers|attentions)_(\d+)_")
 
-RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers|attentions)_(\d+)_")
-
-
+BLOCKS = ["text_model",
+          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1",
+          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1",
+          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1",
+          "unet_mid_block_attentions_0",
+          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
+          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
+          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
 class LoRAModule(torch.nn.Module):
     """
     replaces forward method of the original Linear, instead of replacing the original Linear module.
@@ -409,13 +414,14 @@ def parse_block_lr_kwargs(nw_kwargs):
     return down_lr_weight, mid_lr_weight, up_lr_weight
 
 
-def create_network(
+def create_network_blockwise(
     multiplier: float,
     network_dim: Optional[int],
     network_alpha: Optional[float],
     vae: AutoencoderKL,
     text_encoder: Union[CLIPTextModel, List[CLIPTextModel]],
     unet,
+    block_wise = None,
     neuron_dropout: Optional[float] = None,
     **kwargs,
 ):
@@ -470,6 +476,7 @@ def create_network(
     network = LoRANetwork(
         text_encoder,
         unet,
+        block_wise=block_wise,
         multiplier=multiplier,
         lora_dim=network_dim,
         alpha=network_alpha,
@@ -751,6 +758,7 @@ class LoRANetwork(torch.nn.Module):
         self,
         text_encoder: Union[List[CLIPTextModel], CLIPTextModel],
         unet,
+        block_wise : Optional[List[int]] = None,
         multiplier: float = 1.0,
         lora_dim: int = 4,
         alpha: float = 1,
@@ -863,18 +871,28 @@ class LoRANetwork(torch.nn.Module):
                                 if is_linear or is_conv2d_1x1 or (self.conv_lora_dim is not None or conv_block_dims is not None):
                                     skipped.append(lora_name)
                                 continue
-
-                            lora = module_class(
-                                lora_name,
-                                child_module,
-                                self.multiplier,
-                                dim,
-                                alpha,
-                                dropout=dropout,
-                                rank_dropout=rank_dropout,
-                                module_dropout=module_dropout,
-                            )
-                            loras.append(lora)
+                            if block_wise == None :
+                                lora = module_class(lora_name,
+                                                    child_module,
+                                                    self.multiplier,
+                                                    dim,
+                                                    alpha,
+                                                    dropout=dropout,
+                                                    rank_dropout=rank_dropout,
+                                                    module_dropout=module_dropout,)
+                                loras.append(lora)
+                            else :
+                                for block in BLOCKS :
+                                    if block in lora_name :
+                                        lora = module_class(lora_name,
+                                                            child_module,
+                                                            self.multiplier,
+                                                            dim,
+                                                            alpha,
+                                                            dropout=dropout,
+                                                            rank_dropout=rank_dropout,
+                                                            module_dropout=module_dropout,)
+                                        loras.append(lora)
             return loras, skipped
 
         text_encoders = text_encoder if type(text_encoder) == list else [text_encoder]
@@ -1120,6 +1138,7 @@ class LoRANetwork(torch.nn.Module):
         self.current_size = (height, width)
         self.shared = shared
 
+        # create masks
         # create masks
         mask = self.mask
         mask_dic = {}

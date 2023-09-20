@@ -2339,7 +2339,7 @@ def main(args):
                     weights_sd = torch.load(network_weight, map_location="cpu")
 
                 block_wise = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,]
-                for i, block in BLOCKS :
+                for i, block in enumerate(BLOCKS) :
                     for layer in weights_sd.keys():
                         if block in layer :
                             block_wise[i] = 1

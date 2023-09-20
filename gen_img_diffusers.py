@@ -2343,6 +2343,7 @@ def main(args):
                     for layer in weights_sd.keys():
                         if block in layer :
                             block_wise[i] = 1
+                print(f'final block_wise : {block_wise}')
                 network, weights_sd = imported_module.create_network_from_weights(network_mul, network_weight, block_wise,
                                                                                   vae, text_encoder, unet, for_inference=True, **net_kwargs)
             else:
@@ -2354,14 +2355,15 @@ def main(args):
                 print("network is not mergiable. ignore merge option.")
 
             if not args.network_merge or not mergeable:
+                print(f'one lora loading ...')
                 # 1) original network
                 # Check weights_sd
                 #for layer in weights_sd.keys():
                 #    print(f'[{layer}] : {weights_sd[layer].shape}')
                 network.apply_to(text_encoder, unet)
                 # 2) loaded network
-                #info = network.load_state_dict(weights_sd, False)  # network.load_weightsを使うようにするとよい
-                #print(f"weights are loaded")
+                info = network.load_state_dict(weights_sd, False)  # network.load_weightsを使うようにするとよい
+                print(f"weights are loaded")
                 if args.opt_channels_last:
                     network.to(memory_format=torch.channels_last)
                 network.to(dtype).to(device)

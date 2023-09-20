@@ -2062,6 +2062,14 @@ def handle_dynamic_prompt_variants(prompt, repeat_count):
 #   text_encoder = CLIPTextModel.from_pretrained(CLIP_ID_L14_336, torch_dtype=dtype)
 #   return text_encoder
 
+BLOCKS = ["text_model",
+          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1",
+          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1",
+          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1",
+          "unet_mid_block_attentions_0",
+          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
+          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
+          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
 
 class BatchDataBase(NamedTuple):
     # バッチ分割が必要ないデータ
@@ -2302,7 +2310,6 @@ def main(args):
         network_pre_calc = args.network_pre_calc
 
         for i, network_module in enumerate(args.network_module):
-            print("import network module:", network_module)
             imported_module = importlib.import_module(network_module)
             network_mul = 1.0 if args.network_mul is None or len(args.network_mul) <= i else args.network_mul[i]
             network_default_muls.append(network_mul)
@@ -2324,16 +2331,20 @@ def main(args):
                         metadata = f.metadata()
                     if metadata is not None:
                         print(f"metadata for: {network_weight}: {metadata}")
-                if args.my_test :
-                    block_wise = args.block_wise
-                    print(f'block_wise : {block_wise}')
-                    network, weights_sd = imported_module.create_network_from_weights(
-                        network_mul, network_weight, block_wise,
-                        vae, text_encoder, unet, for_inference=True, **net_kwargs)
-                else :
-                    network, weights_sd = imported_module.create_network_from_weights(
-                        network_mul, network_weight, vae, text_encoder, unet, for_inference=True, **net_kwargs
-                    )
+
+                if os.path.splitext(network_weight)[1] == ".safetensors":
+                    from safetensors.torch import load_file, safe_open
+                    weights_sd = load_file(network_weight)
+                else:
+                    weights_sd = torch.load(network_weight, map_location="cpu")
+
+                block_wise = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,]
+                for i, block in BLOCKS :
+                    for layer in weights_sd.keys():
+                        if block in layer :
+                            block_wise[i] = 1
+                network, weights_sd = imported_module.create_network_from_weights(network_mul, network_weight, block_wise,
+                                                                                  vae, text_encoder, unet, for_inference=True, **net_kwargs)
             else:
                 raise ValueError("No weight. Weight is required.")
             if network is None:

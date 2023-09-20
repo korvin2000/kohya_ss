@@ -221,6 +221,12 @@ class NetworkTrainer:
 
         save_base_dir = args.output_dir
         _, folder_name = os.path.split(save_base_dir)
+        # save config
+        record_save_dir = os.path.join(args.output_dir, "record")
+        os.makedirs(record_save_dir, exist_ok=True)
+        with open(os.path.join(record_save_dir, 'config.json'), 'w') as f:
+            json.dump(vars(args), f, indent=4)
+
         if is_main_process:
             print(" make wandb process log file")
             wandb.init(project=args.wandb_init_name)
@@ -929,8 +935,6 @@ class NetworkTrainer:
             save_model(ckpt_name, network, global_step, num_train_epochs, force_sync_upload=True)
 
             print("gradient recording")
-            record_save_dir = os.path.join(args.output_dir, "record")
-            os.makedirs(record_save_dir, exist_ok=True)
             gradient_save_dir = os.path.join(record_save_dir, "gradient_norm.pickle")
             import pickle
             with open(gradient_save_dir, 'wb') as fw:

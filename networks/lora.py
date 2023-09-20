@@ -879,7 +879,7 @@ class LoRANetwork(torch.nn.Module):
                                 loras.append(lora)
                             else :
                                 for i, block in enumerate(BLOCKS) :
-                                    if block in lora_name and i == 1:
+                                    if block in lora_name and block_wise[i] == 1:
                                         lora = module_class(lora_name,
                                                             child_module,
                                                             self.multiplier,

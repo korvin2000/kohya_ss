@@ -298,6 +298,7 @@ class NetworkTrainer:
         if args.dim_from_weights:
             network, _ = network_module.create_network_from_weights(1, args.network_weights, vae, text_encoder, unet, **net_kwargs)
         else:
+            print(f'trg block_wise: {args.block_wise}
             network = network_module.create_network_blockwise(
                     1.0,
                     args.network_dim,

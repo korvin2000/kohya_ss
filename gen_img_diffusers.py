@@ -2360,8 +2360,8 @@ def main(args):
                 #    print(f'[{layer}] : {weights_sd[layer].shape}')
                 network.apply_to(text_encoder, unet)
                 # 2) loaded network
-                info = network.load_state_dict(weights_sd, False)  # network.load_weightsを使うようにするとよい
-                print(f"weights are loaded")
+                #info = network.load_state_dict(weights_sd, False)  # network.load_weightsを使うようにするとよい
+                #print(f"weights are loaded")
                 if args.opt_channels_last:
                     network.to(memory_format=torch.channels_last)
                 network.to(dtype).to(device)

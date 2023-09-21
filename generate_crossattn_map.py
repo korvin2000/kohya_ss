@@ -2400,6 +2400,11 @@ def main(args):
         if 'org_weight' not in layer:
             network.state_dict()[layer] = weights_sd[layer]
 
+    #### check weights_sd
+    for layer in weights_sd.keys():
+        weight = weights_sd[layer]
+
+    """
     # upscalerの指定があれば取得する
     upscaler = None
     if args.highres_fix_upscaler:
@@ -2445,7 +2450,7 @@ def main(args):
         for cn in control_nets:
             cn.unet.to(memory_format=torch.channels_last)
             cn.net.to(memory_format=torch.channels_last)
-
+    
     print(f' (1) register attention storer')
     from attention_store import AttentionStore
     from attention_store.register_attn_control import register_attention_control
@@ -2504,7 +2509,7 @@ def main(args):
     score_df = pd.DataFrame(values)
 
     score_df.to_csv(csv_dir, index=False, header=False)
-
+    """
 
 
 def setup_parser() -> argparse.ArgumentParser:

@@ -2392,8 +2392,10 @@ def main(args):
     for lora in loras :
         lora_name = lora.lora_name
         up_weight = lora.lora_up.weight.data
-        down_weight = lora.lora_down.weight
-        print(f'up_weight : {up_weight}')
+        down_weight = lora.lora_down.weight.data
+        if lora.is_linear :
+            lora_weight = down_weight @ up_weight
+            print(f'{lora_name} : {lora_weight}')
     """
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():

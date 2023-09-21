@@ -2332,7 +2332,6 @@ def main(args):
                     net_kwargs[key] = value
             if args.network_weights and i < len(args.network_weights):
                 network_weight = args.network_weights[i]
-                print("load network weights from:", network_weight)
                 if model_util.is_safetensors(network_weight) and args.network_show_meta:
                     from safetensors.torch import safe_open
                     with safe_open(network_weight, framework="pt") as f:
@@ -2360,9 +2359,16 @@ def main(args):
                                                                                   vae, text_encoder, unet,
                                                                                   for_inference=True, **net_kwargs)
                 """
-                network = imported_module.create_network_blockwise(network_mul, network_weight,
-                                                         block_wise,vae, text_encoder, unet,
-                                                         for_inference=True, **net_kwargs)
+                network = network_module.create_network_blockwise(
+                    1.0,
+                    args.network_dim,
+                    args.network_alpha,
+                    vae,
+                    text_encoder,
+                    unet,
+                    block_wise=args.block_wise,
+                    neuron_dropout=args.network_dropout,
+                    **net_kwargs, )
             else:
                 raise ValueError("No weight. Weight is required.")
             if network is None:

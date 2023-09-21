@@ -2404,10 +2404,11 @@ def main(args):
     file_name = args.file_name
     with open(file_name, 'w') as f :
         for layer in weights_sd.keys():
-            weight = weights_sd[layer]
-            mean = torch.mean(weight).item()
-            std = torch.std(weight).item()
-            f.write(f'{layer} : mean {mean} : std {std}\n')
+            if 'alpha' not in layer :
+                weight = weights_sd[layer]
+                mean = torch.mean(weight).item()
+                std = torch.std(weight).item()
+                f.write(f'{layer} : mean {mean} : std {std}\n')
 
 
 

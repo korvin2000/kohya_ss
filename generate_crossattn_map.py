@@ -2165,19 +2165,16 @@ def main(args):
     if args.vae is not None:
         vae = model_util.load_vae(args.vae, dtype)
         print("additional VAE loaded")
-
     if args.clip_guidance_scale > 0.0 or args.clip_image_guidance_scale:
         print("prepare clip model")
         clip_model = CLIPModel.from_pretrained(CLIP_MODEL_PATH, torch_dtype=dtype)
     else:
         clip_model = None
-
     if args.vgg16_guidance_scale > 0.0:
         print("prepare resnet model")
         vgg16_model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.IMAGENET1K_V1)
     else:
         vgg16_model = None
-
     # xformers、Hypernetwork対応
     if not args.diffusers_xformers:
         mem_eff = not (args.xformers or args.sdpa)
@@ -2227,7 +2224,6 @@ def main(args):
         scheduler_cls = KDPM2AncestralDiscreteScheduler
         scheduler_module = diffusers.schedulers.scheduling_k_dpm_2_ancestral_discrete
         scheduler_num_noises_per_step = 2
-
     if args.v_parameterization:
         sched_init_args["prediction_type"] = "v_prediction"
 
@@ -2315,6 +2311,8 @@ def main(args):
 
     # networkを組み込む
     if args.network_module:
+        network_module = importlib.import_module(args.network_module)
+        """
         networks = []
         network_default_muls = []
         network_pre_calc = args.network_pre_calc
@@ -2353,22 +2351,13 @@ def main(args):
                                 print(f'{layer} : {weights_sd[layer]}')
                             block_wise[i] = 1
                 print(f'final block_wise : {block_wise}')
-                """
+                
                 network, weights_sd = imported_module.create_network_from_weights(network_mul, network_weight,
                                                                                   block_wise,
                                                                                   vae, text_encoder, unet,
                                                                                   for_inference=True, **net_kwargs)
-                """
-                network = network_module.create_network_blockwise(
-                    1.0,
-                    args.network_dim,
-                    args.network_alpha,
-                    vae,
-                    text_encoder,
-                    unet,
-                    block_wise=args.block_wise,
-                    neuron_dropout=args.network_dropout,
-                    **net_kwargs, )
+                
+                
             else:
                 raise ValueError("No weight. Weight is required.")
             if network is None:
@@ -2391,15 +2380,27 @@ def main(args):
                 networks.append(network)
             else:
                 network.merge_to(text_encoder, unet, weights_sd, dtype, device)
+        """
     else:
         networks = []
+    network = network_module.create_network_blockwise(
+        1.0,
+        args.network_dim,
+        args.network_alpha,
+        vae,
+        text_encoder,
+        unet,
+        block_wise=args.block_wise,
+        neuron_dropout=args.network_dropout,
+        )
+    """
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():
         if 'org_weight' not in layer:
             network.state_dict()[layer] = weights_sd[layer]
         else :
             print(f'{layer} : {weights_sd[layer]}')
-    """
+    
     #### check weights_sd
     file_name = args.file_name
     with open(file_name, 'w') as f :
@@ -2409,7 +2410,7 @@ def main(args):
                 mean = torch.mean(weight).item()
                 std = torch.std(weight).item()
                 f.write(f'{layer} : mean {mean} : std {std}\n')
-    """
+    
     file_name = args.file_name
     with open(file_name, 'w') as f:
         for layer in org_state_dict.keys():
@@ -2425,7 +2426,7 @@ def main(args):
 
 
 
-    """
+    
     # upscalerの指定があれば取得する
     upscaler = None
     if args.highres_fix_upscaler:

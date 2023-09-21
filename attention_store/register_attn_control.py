@@ -27,9 +27,9 @@ def register_attention_control(unet, controller):
             # 2) after value calculating
             hidden_states = torch.bmm(attention_probs, value)
             hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
-            print(f'self.to_out {self.to_out}')
+            #print(f'self.to_out {self.to_out}')
             hidden_states = self.to_out[0](hidden_states)
-            hidden_states = self.to_out[1](hidden_states)
+            #hidden_states = self.to_out[1](hidden_states)
             return hidden_states
 
         return forward

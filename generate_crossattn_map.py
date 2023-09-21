@@ -2459,12 +2459,13 @@ def main(args):
 
     print(f' (3) get target text embedding')
     text_embeddings_src, trg_indexs_src = generate_text_embedding(args.target_token, tokenizer, text_encoder, device)
-    print(f'text_embeddings_src : {text_embeddings_src}')
+    print(f'text_embeddings_src : {text_embeddings_src.shape}')
+
     print(f' (4) call pre-made image')
-    print(f'args.image_dir : {args.image_dir}')
     pil_img = Image.open(args.image_dir).convert("RGB")
     latent = image2latent(pil_img, vae, device)
     t=0
+    # unet = /data7/sooyeon/LyCORIS/lyco_v2/kohya_ss/library/original_unet.py:875 in forward
     unet(latent, t, encoder_hidden_states=text_embeddings_src)["sample"]
     attention_maps_src = attention_storer.step_store
     elems = []

@@ -2394,12 +2394,14 @@ def main(args):
         unet,
         block_wise=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,])
 
-
-    org_state_dict = network.state_dict()
-    print(f'org_state_dict : {org_state_dict}')
-    for layer in org_state_dict.keys():
+    loras = network.unet_loras + network.text_encoder_loras
+    for lora in loras :
+        lora_name = lora.lora_name
+        original_weight = lora.original_weight
+        mean = torch.mean(original_weight).item()
+        std = torch.std(original_weight).item()
         #if 'org_weight' in layer:
-        print(f'{layer} ')
+        print(f'{lora_name} : mean {mean} : std {std}') 
     """
     #### check weights_sd
     file_name = args.file_name

@@ -2124,6 +2124,7 @@ class BatchData(NamedTuple):
 
 
 def main(args):
+
     if args.fp16:
         dtype = torch.float16
     elif args.bf16:
@@ -2387,7 +2388,12 @@ def main(args):
                 network.merge_to(text_encoder, unet, weights_sd, dtype, device)
     else:
         networks = []
-
+    loras = network.unet_loras + network.text_encoder_loras
+    for lora in loras :
+        lora_name = lora.lora_name
+        up_weight = lora.lora_up.weight
+        down_weight = lora.lora_down.weight
+        print(f'up_weight : {up_weight}')
     """
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():

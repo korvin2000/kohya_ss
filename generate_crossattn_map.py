@@ -2274,13 +2274,8 @@ def main(args):
     if scheduler_module is not None:
         scheduler_module.torch = TorchRandReplacer(noise_manager)
 
-    scheduler = scheduler_cls(
-        num_train_timesteps=SCHEDULER_TIMESTEPS,
-        beta_start=SCHEDULER_LINEAR_START,
-        beta_end=SCHEDULER_LINEAR_END,
-        beta_schedule=SCHEDLER_SCHEDULE,
-        **sched_init_args,
-    )
+    scheduler = scheduler_cls(num_train_timesteps=SCHEDULER_TIMESTEPS,beta_start=SCHEDULER_LINEAR_START,
+                              beta_end=SCHEDULER_LINEAR_END,beta_schedule=SCHEDLER_SCHEDULE,**sched_init_args,)
 
     # clip_sample=Trueにする
     if hasattr(scheduler.config, "clip_sample") and scheduler.config.clip_sample is False:
@@ -2311,7 +2306,6 @@ def main(args):
         vae = sli_vae
         del sli_vae
     vae.to(dtype).to(device)
-
     text_encoder.to(dtype).to(device)
     unet.to(dtype).to(device)
     if clip_model is not None:
@@ -2324,7 +2318,6 @@ def main(args):
         networks = []
         network_default_muls = []
         network_pre_calc = args.network_pre_calc
-
         for i, network_module in enumerate(args.network_module):
             imported_module = importlib.import_module(network_module)
             network_mul = 1.0 if args.network_mul is None or len(args.network_mul) <= i else args.network_mul[i]
@@ -2337,7 +2330,6 @@ def main(args):
                 for net_arg in network_args:
                     key, value = net_arg.split("=")
                     net_kwargs[key] = value
-
             if args.network_weights and i < len(args.network_weights):
                 network_weight = args.network_weights[i]
                 print("load network weights from:", network_weight)
@@ -2362,10 +2354,15 @@ def main(args):
                                 print(f'{layer} : {weights_sd[layer]}')
                             block_wise[i] = 1
                 print(f'final block_wise : {block_wise}')
+                """
                 network, weights_sd = imported_module.create_network_from_weights(network_mul, network_weight,
                                                                                   block_wise,
                                                                                   vae, text_encoder, unet,
                                                                                   for_inference=True, **net_kwargs)
+                """
+                network = imported_module.create_network(network_mul, network_weight,
+                                                         block_wise,vae, text_encoder, unet,
+                                                         for_inference=True, **net_kwargs)
             else:
                 raise ValueError("No weight. Weight is required.")
             if network is None:
@@ -2373,13 +2370,8 @@ def main(args):
             mergeable = network.is_mergeable()
             if args.network_merge and not mergeable:
                 print("network is not mergiable. ignore merge option.")
-
             if not args.network_merge or not mergeable:
                 print(f'one lora loading ...')
-                # 1) original network
-                # Check weights_sd
-                # for layer in weights_sd.keys():
-                #    print(f'[{layer}] : {weights_sd[layer].shape}')
                 network.apply_to(text_encoder, unet)
                 # 2) loaded network
                 info = network.load_state_dict(weights_sd, False)  # network.load_weightsを使うようにするとよい
@@ -2399,6 +2391,8 @@ def main(args):
     for layer in org_state_dict.keys():
         if 'org_weight' not in layer:
             network.state_dict()[layer] = weights_sd[layer]
+        else :
+            print(f'{layer} : {weights_sd[layer]}')
     """
     #### check weights_sd
     file_name = args.file_name

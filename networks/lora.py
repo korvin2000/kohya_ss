@@ -46,9 +46,11 @@ class LoRAModule(torch.nn.Module):
         if org_module.__class__.__name__ == "Conv2d":
             in_dim = org_module.in_channels
             out_dim = org_module.out_channels
+            self.is_linear = False
         else:
             in_dim = org_module.in_features
             out_dim = org_module.out_features
+            self.is_linear = True
 
         # if limit_rank:
         #   self.lora_dim = min(lora_dim, in_dim, out_dim)

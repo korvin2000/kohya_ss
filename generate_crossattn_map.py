@@ -2446,7 +2446,7 @@ def main(args):
             cn.unet.to(memory_format=torch.channels_last)
             cn.net.to(memory_format=torch.channels_last)
 
-    print(f' (1) register attentino storer')
+    print(f' (1) register attention storer')
     from attention_store import AttentionStore
     from attention_store.register_attn_control import register_attention_control
     attention_storer = AttentionStore()
@@ -2459,7 +2459,7 @@ def main(args):
 
     print(f' (3) get target text embedding')
     text_embeddings_src, trg_indexs_src = generate_text_embedding(args.target_token, tokenizer, text_encoder, device)
-
+    print(f'text_embeddings_src : {text_embeddings_src}')
     print(f' (4) call pre-made image')
     print(f'args.image_dir : {args.image_dir}')
     pil_img = Image.open(args.image_dir).convert("RGB")

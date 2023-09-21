@@ -299,11 +299,11 @@ if __name__ == '__main__':
             list_arguments['log_tracker_config'] = log_tracker_config_path
         temp_tuning_config = generate_tuning_config(tuning_config, **list_arguments)
         # check validity
-        if temp_tuning_config['network_alpha'] > temp_tuning_config['network_dim']:
-            continue
-        if temp_tuning_config['unet_lr'] < temp_tuning_config['text_encoder_lr']:
+        if temp_tuning_config.get('network_alpha', 8) > temp_tuning_config.get('network_dim', 16):
             continue
         if temp_tuning_config.get('conv_alpha', 1) > temp_tuning_config.get('conv_dim', 8):
+            continue
+        if temp_tuning_config.get('unet_lr', 1e-4) < temp_tuning_config.get('text_encoder_lr', 2e-5):
             continue
         # this arguments will be used for overriding default configs
     

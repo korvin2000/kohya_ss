@@ -2397,11 +2397,11 @@ def main(args):
     loras = network.unet_loras + network.text_encoder_loras
     for lora in loras :
         lora_name = lora.lora_name
-        original_weight = lora.original_weight
+        original_weight = lora.org_weight
         mean = torch.mean(original_weight).item()
         std = torch.std(original_weight).item()
         #if 'org_weight' in layer:
-        print(f'{lora_name} : mean {mean} : std {std}') 
+        print(f'{lora_name} : mean {mean} : std {std}')
     """
     #### check weights_sd
     file_name = args.file_name

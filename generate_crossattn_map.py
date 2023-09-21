@@ -2360,7 +2360,7 @@ def main(args):
                                                                                   vae, text_encoder, unet,
                                                                                   for_inference=True, **net_kwargs)
                 """
-                network = imported_module.create_network(network_mul, network_weight,
+                network = imported_module.create_network_blockwise(network_mul, network_weight,
                                                          block_wise,vae, text_encoder, unet,
                                                          for_inference=True, **net_kwargs)
             else:

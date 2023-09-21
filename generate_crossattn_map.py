@@ -2396,6 +2396,8 @@ def main(args):
         if lora.is_linear :
             lora_weight = up_weight @ down_weight
             print(f'{lora_name} : {lora_weight}')
+        else :
+            continue
     """
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():
@@ -2413,7 +2415,7 @@ def main(args):
                 mean = torch.mean(weight).item()
                 std = torch.std(weight).item()
                 f.write(f'{layer} : mean {mean} : std {std}\n')
-    """
+    
     file_name = args.file_name
     loras = network.unet_loras + network.text_encoder_loras
     for lora in loras:
@@ -2425,7 +2427,7 @@ def main(args):
             lora_weight = down_weight @ up_weight
         # else :
 
-    """
+    
     # upscalerの指定があれば取得する
     upscaler = None
     if args.highres_fix_upscaler:

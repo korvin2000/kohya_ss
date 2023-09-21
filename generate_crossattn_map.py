@@ -2397,7 +2397,7 @@ def main(args):
         return original_std_dict
     """
     loras = network.unet_loras + network.text_encoder_loras
-    failure_test = 'failure_text.txt'
+    failure_test = 'SUCCESS_text.txt'
     with open(failure_test, 'w') as f:
         for lora in loras :
             lora_name = lora.lora_name

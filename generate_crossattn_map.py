@@ -102,6 +102,7 @@ def generate_text_embedding(prompt, tokenizer, text_encoder, device):
     text_embeddings = text_encoder(text_input.input_ids.to(device))[0]
     return text_embeddings, trg_indexs
 
+
 @torch.no_grad()
 def image2latent(image, vae, device):
     with torch.no_grad():
@@ -119,6 +120,8 @@ def list2tensor(map_list):
     out = 255 * out / out.max()
     out = out.to(torch.uint8)
     return out.cpu()
+
+
 def draw_attention_score_on_image(trg_list,
                                   img_dir,
                                   thresholds, save_folder,
@@ -137,7 +140,7 @@ def draw_attention_score_on_image(trg_list,
             #
             if type(img_dir) == str:
                 image_pil = Image.open(img_dir)
-            else :
+            else:
                 image_pil = img_dir
             image = np.array(image_pil)
             plt.imshow(image, alpha=0.5)
@@ -146,6 +149,8 @@ def draw_attention_score_on_image(trg_list,
                                     f'{src_name}_{layer_name}_thredshold_{threshold}_binary_attn_map.png')
             plt.savefig(save_dir)
         return mean_score
+
+
 def replace_unet_modules(unet: diffusers.models.unet_2d_condition.UNet2DConditionModel, mem_eff_attn, xformers, sdpa):
     if mem_eff_attn:
         print("Enable memory efficient attention for U-Net")
@@ -231,6 +236,7 @@ def replace_vae_attn_to_memory_efficient():
     else:
         diffusers.models.attention_processor.Attention.forward = forward_flash_attn
 
+
 def replace_vae_attn_to_xformers():
     print("VAE: Attention.forward has been replaced to xformers")
     import xformers.ops
@@ -286,8 +292,10 @@ def replace_vae_attn_to_xformers():
     else:
         diffusers.models.attention_processor.Attention.forward = forward_xformers
 
+
 def replace_vae_attn_to_sdpa():
     print("VAE: Attention.forward has been replaced to sdpa")
+
     def forward_sdpa(self, hidden_states, **kwargs):
         residual = hidden_states
         batch, channel, height, width = hidden_states.shape
@@ -1545,7 +1553,7 @@ class PipelineLike:
 
         # バッチサイズが複数だと正しく動くかわからない
         loss = ((
-                            image_embeddings - guide_embeddings) ** 2).mean() * guidance_scale  # MSE style transferでコンテンツの損失はMSEなので
+                        image_embeddings - guide_embeddings) ** 2).mean() * guidance_scale  # MSE style transferでコンテンツの損失はMSEなので
 
         grads = -torch.autograd.grad(loss, latents)[0]
         if isinstance(self.scheduler, LMSDiscreteScheduler):
@@ -1554,6 +1562,7 @@ class PipelineLike:
         else:
             noise_pred = noise_pred_original - torch.sqrt(beta_prod_t) * grads
         return noise_pred, latents
+
 
 class MakeCutouts(torch.nn.Module):
     def __init__(self, cut_size, cut_power=1.0):
@@ -1598,11 +1607,10 @@ re_attention = re.compile(
 [^\\()\[\]:]+|
 :
 """,
-    re.X,)
+    re.X, )
 
 
 def parse_prompt_attention(text):
-
     res = []
     round_brackets = []
     square_brackets = []
@@ -1979,7 +1987,6 @@ def preprocess_mask(mask):
     return mask
 
 
-
 RE_DYNAMIC_PROMPT = re.compile(r"\{((e|E)\$\$)?(([\d\-]+)\$\$)?(([^\|\}]+?)\$\$)?(.+?((\|).+?)*?)\}")
 
 
@@ -2076,7 +2083,6 @@ def handle_dynamic_prompt_variants(prompt, repeat_count):
     return prompts
 
 
-
 BLOCKS = ["text_model",
           "unet_down_blocks_0_attentions_0", "unet_down_blocks_0_attentions_1",
           "unet_down_blocks_1_attentions_0", "unet_down_blocks_1_attentions_1",
@@ -2118,7 +2124,6 @@ class BatchData(NamedTuple):
 
 
 def main(args):
-
     if args.fp16:
         dtype = torch.float16
     elif args.bf16:
@@ -2165,16 +2170,19 @@ def main(args):
     if args.vae is not None:
         vae = model_util.load_vae(args.vae, dtype)
         print("additional VAE loaded")
+
     if args.clip_guidance_scale > 0.0 or args.clip_image_guidance_scale:
         print("prepare clip model")
         clip_model = CLIPModel.from_pretrained(CLIP_MODEL_PATH, torch_dtype=dtype)
     else:
         clip_model = None
+
     if args.vgg16_guidance_scale > 0.0:
         print("prepare resnet model")
         vgg16_model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.IMAGENET1K_V1)
     else:
         vgg16_model = None
+
     # xformers、Hypernetwork対応
     if not args.diffusers_xformers:
         mem_eff = not (args.xformers or args.sdpa)
@@ -2224,6 +2232,7 @@ def main(args):
         scheduler_cls = KDPM2AncestralDiscreteScheduler
         scheduler_module = diffusers.schedulers.scheduling_k_dpm_2_ancestral_discrete
         scheduler_num_noises_per_step = 2
+
     if args.v_parameterization:
         sched_init_args["prediction_type"] = "v_prediction"
 
@@ -2270,8 +2279,8 @@ def main(args):
     if scheduler_module is not None:
         scheduler_module.torch = TorchRandReplacer(noise_manager)
 
-    scheduler = scheduler_cls(num_train_timesteps=SCHEDULER_TIMESTEPS,beta_start=SCHEDULER_LINEAR_START,
-                              beta_end=SCHEDULER_LINEAR_END,beta_schedule=SCHEDLER_SCHEDULE,**sched_init_args,)
+    scheduler = scheduler_cls(num_train_timesteps=SCHEDULER_TIMESTEPS, beta_start=SCHEDULER_LINEAR_START,
+                              beta_end=SCHEDULER_LINEAR_END, beta_schedule=SCHEDLER_SCHEDULE, **sched_init_args, )
 
     # clip_sample=Trueにする
     if hasattr(scheduler.config, "clip_sample") and scheduler.config.clip_sample is False:
@@ -2309,12 +2318,8 @@ def main(args):
     if vgg16_model is not None:
         vgg16_model.to(dtype).to(device)
 
-    print(f'args.network_module : {args.network_module}')
-
     # networkを組み込む
-
     if args.network_module:
-        
         networks = []
         network_default_muls = []
         network_pre_calc = args.network_pre_calc
@@ -2332,6 +2337,7 @@ def main(args):
                     net_kwargs[key] = value
             if args.network_weights and i < len(args.network_weights):
                 network_weight = args.network_weights[i]
+                print("load network weights from:", network_weight)
                 if model_util.is_safetensors(network_weight) and args.network_show_meta:
                     from safetensors.torch import safe_open
                     with safe_open(network_weight, framework="pt") as f:
@@ -2349,7 +2355,7 @@ def main(args):
                 for i, block in enumerate(BLOCKS):
                     for layer in weights_sd.keys():
                         if block in layer:
-                            if 'mid' in layer :
+                            if 'mid' in layer:
                                 print(f'{layer} : {weights_sd[layer]}')
                             block_wise[i] = 1
                 print(f'final block_wise : {block_wise}')
@@ -2357,8 +2363,6 @@ def main(args):
                                                                                   block_wise,
                                                                                   vae, text_encoder, unet,
                                                                                   for_inference=True, **net_kwargs)
-                
-                
             else:
                 raise ValueError("No weight. Weight is required.")
             if network is None:
@@ -2381,10 +2385,39 @@ def main(args):
                 networks.append(network)
             else:
                 network.merge_to(text_encoder, unet, weights_sd, dtype, device)
-        
     else:
         networks = []
 
+    """
+    org_state_dict = network.state_dict()
+    for layer in org_state_dict.keys():
+        if 'org_weight' not in layer:
+            network.state_dict()[layer] = weights_sd[layer]
+        else :
+            print(f'{layer} : {weights_sd[layer]}')
+
+    #### check weights_sd
+    file_name = args.file_name
+    with open(file_name, 'w') as f :
+        for layer in weights_sd.keys():
+            if 'alpha' not in layer :
+                weight = weights_sd[layer]
+                mean = torch.mean(weight).item()
+                std = torch.std(weight).item()
+                f.write(f'{layer} : mean {mean} : std {std}\n')
+    """
+    file_name = args.file_name
+    loras = network.unet_loras + network.text_encoder_loras
+    for lora in loras:
+        lora_name = lora.lora_name
+        is_linear = lora.is_linear
+        if is_linear:
+            up_weight = weights_sd[f'{lora_name}.up.weight']
+            down_weight = weights_sd[f'{lora_name}.down.weight']
+            lora_weight = down_weight @ up_weight
+        # else :
+
+    """
     # upscalerの指定があれば取得する
     upscaler = None
     if args.highres_fix_upscaler:
@@ -2430,7 +2463,7 @@ def main(args):
         for cn in control_nets:
             cn.unet.to(memory_format=torch.channels_last)
             cn.net.to(memory_format=torch.channels_last)
-    
+
     print(f' (1) register attention storer')
     from attention_store import AttentionStore
     from attention_store.register_attn_control import register_attention_control
@@ -2749,15 +2782,17 @@ def setup_parser() -> argparse.ArgumentParser:
 
     return parser
 
+
 def arg_as_list(s):
     import ast
     v = ast.literal_eval(s)
     return v
 
+
 if __name__ == "__main__":
     parser = setup_parser()
     parser.add_argument("--device", default='cuda')
-    parser.add_argument("--target_token", type=str, default = 'haibara')
+    parser.add_argument("--target_token", type=str, default='haibara')
     parser.add_argument("--image_dir", type=str)
     parser.add_argument("--save_base_folder", type=str, default='./result/haibara_out_block/attention_map')
     parser.add_argument("--file_name", type=str)

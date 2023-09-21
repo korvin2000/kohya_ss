@@ -265,7 +265,7 @@ def create_config():
             {
               "num_repeats": num_repeats,
               "image_dir": images_folder,
-              "class_tokens": None if caption_extension else project_name
+              "class_tokens": None if caption_extension else class_tokens
             }
           ]
         }
@@ -354,6 +354,8 @@ def add_basic_arguments(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
   # should we use port fallback
   parser.add_argument('--port_fallback', type=bool, default=True, help='Use port fallback (default: False)')
+  # add class_tokens
+  parser.add_argument('--class_tokens', type=str, default='girl', help='Class tokens for the project (default: "girl")')
   return []
 
 def add_sample_args(parser : argparse.ArgumentParser) -> List[str]:
@@ -581,6 +583,7 @@ if __name__ == "__main__":
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
   color_aug = args.color_aug
+  class_tokens = args.class_tokens
   
   xformers = args.xformers
   precision_type = args.precision_type

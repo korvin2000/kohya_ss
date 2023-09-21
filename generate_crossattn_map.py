@@ -2393,14 +2393,13 @@ def main(args):
         text_encoder,
         unet,
         block_wise=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,])
-    """
+
+
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():
-        if 'org_weight' not in layer:
-            network.state_dict()[layer] = weights_sd[layer]
-        else :
-            print(f'{layer} : {weights_sd[layer]}')
-    
+        if 'org_weight' in layer:
+            print(f'{layer} ')
+    """
     #### check weights_sd
     file_name = args.file_name
     with open(file_name, 'w') as f :

@@ -2388,14 +2388,11 @@ def main(args):
     """
     network = network_module.create_network_blockwise(
         1.0,
-        args.network_dim,
-        args.network_alpha,
+        64,64,
         vae,
         text_encoder,
         unet,
-        block_wise=args.block_wise,
-        neuron_dropout=args.network_dropout,
-        )
+        block_wise=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,])
     """
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():

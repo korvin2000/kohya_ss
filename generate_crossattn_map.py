@@ -2396,6 +2396,7 @@ def main(args):
 
 
     org_state_dict = network.state_dict()
+    print(f'org_state_dict : {org_state_dict}')
     for layer in org_state_dict.keys():
         #if 'org_weight' in layer:
         print(f'{layer} ')

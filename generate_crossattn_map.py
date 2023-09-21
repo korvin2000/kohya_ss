@@ -2394,7 +2394,7 @@ def main(args):
         up_weight = lora.lora_up.weight.data
         down_weight = lora.lora_down.weight.data
         if lora.is_linear :
-            lora_weight = down_weight @ up_weight
+            lora_weight = up_weight @ down_weight
             print(f'{lora_name} : {lora_weight}')
     """
     org_state_dict = network.state_dict()

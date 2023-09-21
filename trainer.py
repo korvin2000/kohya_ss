@@ -400,6 +400,10 @@ def add_training_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
                       help='Learning rate for the text encoder (default: 2e-5)')
   parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
+  #lr_scheduler_number
+  parser.add_argument('--lr_scheduler_number', type=int, default=3, help='LR scheduler number restart for the project (default: 1)')
+  #lr_warmup_ratio
+  parser.add_argument('--lr_warmup_ratio', type=float, default=0.05, help='LR warmup ratio for the project (default: 0.1)')
   # xformers
   parser.add_argument('--xformers', type=str, default='False', help='Xformers for the project (default: False)')
   # precision_type
@@ -643,10 +647,10 @@ if __name__ == "__main__":
     keep_only_last_n_epochs = max_train_epochs
 
   lr_scheduler = args.lr_scheduler #@param ["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"]
-  lr_scheduler_number = 3 #@param {type:"number"}
+  lr_scheduler_number = args.lr_scheduler_number if lr_scheduler == "cosine_with_restarts" else 0
   lr_scheduler_num_cycles = lr_scheduler_number if lr_scheduler == "cosine_with_restarts" else 0
   lr_scheduler_power = lr_scheduler_number if lr_scheduler == "polynomial" else 0
-  lr_warmup_ratio = 0.05 #@param {type:"slider", min:0.0, max:0.5, step:0.01}
+  lr_warmup_ratio = args.lr_warmup_ratio
   lr_warmup_steps = 0
   min_snr_gamma = args.min_snr_gamma #@param {type:"boolean"}
   min_snr_gamma_value = args.min_snr_gamma_value if min_snr_gamma else None

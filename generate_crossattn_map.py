@@ -2310,9 +2310,9 @@ def main(args):
         vgg16_model.to(dtype).to(device)
 
     print(f'args.network_module : {args.network_module}')
-    network_module = importlib.import_module(args.network_module[0])
+
     # networkを組み込む
-    """
+
     if args.network_module:
         
         networks = []
@@ -2353,7 +2353,6 @@ def main(args):
                                 print(f'{layer} : {weights_sd[layer]}')
                             block_wise[i] = 1
                 print(f'final block_wise : {block_wise}')
-                
                 network, weights_sd = imported_module.create_network_from_weights(network_mul, network_weight,
                                                                                   block_wise,
                                                                                   vae, text_encoder, unet,
@@ -2385,51 +2384,7 @@ def main(args):
         
     else:
         networks = []
-    """
-    network = network_module.create_network_blockwise(
-        1.0,
-        64,64,
-        vae,
-        text_encoder,
-        unet,
-        block_wise=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,])
-    original_module = 'original_module.txt'
-    with open(original_module, 'w') as f :
-        loras = network.unet_loras + network.text_encoder_loras
-        for lora in loras :
-            lora_name = lora.lora_name
-            original_weight = lora.org_weight
-            mean = torch.mean(original_weight).item()
-            std = torch.std(original_weight).item()
-            #if 'org_weight' in layer:
-            f.write(f'{lora_name} : mean {mean} : std {std}\n')
-    """
-    #### check weights_sd
-    file_name = args.file_name
-    with open(file_name, 'w') as f :
-        for layer in weights_sd.keys():
-            if 'alpha' not in layer :
-                weight = weights_sd[layer]
-                mean = torch.mean(weight).item()
-                std = torch.std(weight).item()
-                f.write(f'{layer} : mean {mean} : std {std}\n')
-    
-    file_name = args.file_name
-    with open(file_name, 'w') as f:
-        for layer in org_state_dict.keys():
-            if 'org_weight' in layer:
-                weight = org_state_dict[layer]
-                mean = torch.mean(weight).item()
-                std = torch.std(weight).item()
-                f.write(f'{layer} : mean {mean} : std {std}\n')
 
-
-
-
-
-
-
-    
     # upscalerの指定があれば取得する
     upscaler = None
     if args.highres_fix_upscaler:

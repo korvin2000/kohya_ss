@@ -227,7 +227,7 @@ def create_config():
         "prior_loss_weight": 1.0,
       },
       "dataset_arguments": {
-        "cache_latents": True if not flip_aug and not color_aug else False,
+        "cache_latents": True if not flip_aug and not color_aug and not random_crop else False,
       },
       "extra_arguments": extra_args_dict
     }
@@ -542,6 +542,9 @@ if __name__ == "__main__":
   extra_args_dict = fix_boolean_args(extra_args_dict) # fix boolean arguments
   
   print("Extra args dict : ", extra_args_dict)
+  
+  # random_crop should be parsed from extra_args_dict
+  random_crop = extra_args_dict['random_crop']
   
   try:
     down_lr_weight = literal_eval(args.down_lr_weight)

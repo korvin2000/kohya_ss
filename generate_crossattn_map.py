@@ -2401,8 +2401,15 @@ def main(args):
             network.state_dict()[layer] = weights_sd[layer]
 
     #### check weights_sd
-    for layer in weights_sd.keys():
-        weight = weights_sd[layer]
+    file_name = args.file_name
+    with open(file_name, 'w') as f :
+        for layer in weights_sd.keys():
+            weight = weights_sd[layer]
+            mean = torch.mean(weight).item()
+            std = torch.std(weight).item()
+            f.write(f'{layer} : mean {mean} : std {std}\n')
+
+
 
     """
     # upscalerの指定があれば取得する

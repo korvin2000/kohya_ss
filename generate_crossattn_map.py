@@ -2388,16 +2388,27 @@ def main(args):
                 network.merge_to(text_encoder, unet, weights_sd, dtype, device)
     else:
         networks = []
+    """
+    def cache_layerwise_std(network):
+        original_std_dict = {}
+        for name, module in network.named_modules():
+            if isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.Linear):
+                original_std_dict[name] = module.weight.data.std()
+        return original_std_dict
+    """
     loras = network.unet_loras + network.text_encoder_loras
     for lora in loras :
         lora_name = lora.lora_name
-        up_weight = lora.lora_up.weight.data
-        down_weight = lora.lora_down.weight.data
+        up_weight = lora.lora_up.weight.data.to(device)
+        down_weight = lora.lora_down.weight.data.to(device)
         if lora.is_linear :
             lora_weight = up_weight @ down_weight
-            print(f'{lora_name} : {lora_weight}')
+        elif down_weight.size()[2:4] == (1, 1):
+            lora_weight =  (up_weight.squeeze(3).squeeze(2) @ down_weight.squeeze(3).squeeze(2)).unsqueeze(2).unsqueeze(3)
         else :
-            continue
+            lora_weight =  torch.nn.functional.conv2d(down_weight.permute(1, 0, 2, 3), up_weight).permute(1, 0, 2, 3)
+        print(f'[{lora.is_linear}] {lora_name} : {lora_weight}')
+
     """
     org_state_dict = network.state_dict()
     for layer in org_state_dict.keys():

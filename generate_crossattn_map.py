@@ -2309,10 +2309,11 @@ def main(args):
     if vgg16_model is not None:
         vgg16_model.to(dtype).to(device)
 
+    network_module = importlib.import_module(args.network_module)
     # networkを組み込む
+    """
     if args.network_module:
-        network_module = importlib.import_module(args.network_module)
-        """
+        
         networks = []
         network_default_muls = []
         network_pre_calc = args.network_pre_calc
@@ -2380,9 +2381,10 @@ def main(args):
                 networks.append(network)
             else:
                 network.merge_to(text_encoder, unet, weights_sd, dtype, device)
-        """
+        
     else:
         networks = []
+    """
     network = network_module.create_network_blockwise(
         1.0,
         args.network_dim,

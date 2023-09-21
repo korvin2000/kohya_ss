@@ -2787,6 +2787,7 @@ if __name__ == "__main__":
     parser.add_argument("--target_token", type=str, default = 'haibara')
     parser.add_argument("--image_dir", type=str)
     parser.add_argument("--save_base_folder", type=str, default='./result/haibara_out_block/attention_map')
+    parser.add_argument("--file_name", type=str)
     args = parser.parse_args()
     main(args)
 

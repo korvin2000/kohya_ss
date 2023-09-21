@@ -2466,7 +2466,7 @@ def main(args):
     latent = image2latent(pil_img, vae, device)
     t=0
     # unet = /data7/sooyeon/LyCORIS/lyco_v2/kohya_ss/library/original_unet.py:875 in forward
-    unet(latent, t, encoder_hidden_states=text_embeddings_src)["sample"]
+    unet(latent, t, encoder_hidden_states=text_embeddings_src)#["sample"]
     attention_maps_src = attention_storer.step_store
     elems = []
     total_score = 0

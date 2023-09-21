@@ -2418,7 +2418,7 @@ def main(args):
                 mean = torch.mean(weight).item()
                 std = torch.std(weight).item()
                 f.write(f'{layer} : mean {mean} : std {std}\n')
-        
+
 
 
 

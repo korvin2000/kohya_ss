@@ -82,6 +82,7 @@ class LoRAModule(torch.nn.Module):
         self.dropout = dropout
         self.rank_dropout = rank_dropout
         self.module_dropout = module_dropout
+        self.org_weight = org_module.weight.detach().clone()
 
     def apply_to(self):
         self.org_forward = self.org_module.forward
@@ -155,7 +156,7 @@ class LoRAInfModule(LoRAModule):
             self.use_sub_prompt = False
 
         self.network: LoRANetwork = None
-
+        self.org_weight = org_module.weight.detach().clone()
     def set_network(self, network):
         self.network = network
 

@@ -572,6 +572,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.image_to_subset: Dict[str, Union[DreamBoothSubset, FineTuningSubset]] = {}
 
         self.identifier_dict: Dict[str, list] = {}
+        self.identifier_list: List(str) = []
 
         self.replacements = {}
 
@@ -837,10 +838,10 @@ class BaseDataset(torch.utils.data.Dataset):
 
         self.shuffle_buckets()
         self._length = len(self.buckets_indices)
-        # if WANT_MULTIVIEW_AUGMENTATION:
-        #     self._length = len(self.identifier_dict)
-        # else:
-        #     self._length = len(self.buckets_indices)
+        if WANT_MULTIVIEW_AUGMENTATION:
+            self._length = len(self.identifier_dict)
+        else:
+            self._length = len(self.buckets_indices)
 
     def shuffle_buckets(self):
         # set random seed for this epoch
@@ -1092,14 +1093,19 @@ class BaseDataset(torch.utils.data.Dataset):
         text_encoder_outputs2_list = []
         text_encoder_pool2_list = []
 
-        for image_key in bucket[image_index : image_index + bucket_batch_size]:
+        if WANT_MULTIVIEW_AUGMENTATION:
+            mini_bucket = bucket[image_index : image_index + bucket_batch_size]
+            mini_identifiers = self.identifier_list[index : index + bucket_batch_size]
+        else:
+            mini_bucket = bucket[image_index : image_index + bucket_batch_size]
+            mini_identifiers = bucket[image_index : image_index + bucket_batch_size]
+
+        for image_key, identifier in zip(mini_bucket, mini_identifiers):
             image_info = self.image_data[image_key]
             subset = self.image_to_subset[image_key]
             loss_weights.append(self.prior_loss_weight if image_info.is_reg else 1.0)
 
             flipped = subset.flip_aug and random.random() < 0.5  # not flipped or flipped with 50% chance
-
-            sample_item_list = []
 
             # image/latentsを処理する
             if image_info.latents is not None:  # cache_latents=Trueの場合
@@ -1123,7 +1129,7 @@ class BaseDataset(torch.utils.data.Dataset):
                 # 画像を読み込み、必要ならcropする
                 ##### process image #####
                 if WANT_MULTIVIEW_AUGMENTATION:
-                    identifier = find_identifier(image_info.image_key)
+                    # identifier = find_identifier(image_info.image_key)
                     same_identifier_list = self.identifier_dict[identifier]
                     identifier_num = len(same_identifier_list)
                     # print(f'{identifier_num} images in {identifier}')
@@ -1184,7 +1190,6 @@ class BaseDataset(torch.utils.data.Dataset):
                     img = img[:, ::-1, :].copy()  # copy to avoid negative stride problem
 
                 latents = None
-
                 image = self.image_transforms(img)  # -1.0~1.0のtorch.Tensorになる
 
             images.append(image)
@@ -1515,6 +1520,8 @@ class DreamBoothDataset(BaseDataset):
             subset.img_count = len(img_paths)
             self.subsets.append(subset)
 
+        self.identifier_list = list(self.identifier_dict.keys())
+
         print(f"{num_train_images} train images with repeating.")
         self.num_train_images = num_train_images
 
@@ -1539,6 +1546,8 @@ class DreamBoothDataset(BaseDataset):
                     if n >= num_train_images:
                         break
                 first_loop = False
+
+            self.identifier_list = list(self.identifier_dict.keys())
 
         self.num_reg_images = num_reg_images
 
@@ -1641,6 +1650,8 @@ class FineTuningDataset(BaseDataset):
             self.set_tag_frequency(os.path.basename(subset.metadata_file), tags_list)
             subset.img_count = len(metadata)
             self.subsets.append(subset)
+        
+        self.identifier_list = list(self.identifier_dict.keys())
 
         # check existence of all npz files
         use_npz_latents = all([not (subset.color_aug or subset.random_crop) for subset in self.subsets])

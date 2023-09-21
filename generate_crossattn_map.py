@@ -2483,7 +2483,7 @@ def main(args):
         for index in trg_indexs_src:
             trg_maps = maps[index, :, :, :]  # [8, h, w]
             map_list.append(trg_maps)
-
+        args.thredshold = 0.9
         draw_attention_score_on_image(map_list, img_dir=pil_img, thresholds=[args.thredshold],
                                       save_folder=save_base_folder,
                                       src_name=args.target_token,

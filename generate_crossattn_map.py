@@ -2393,15 +2393,16 @@ def main(args):
         text_encoder,
         unet,
         block_wise=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,])
-
-    loras = network.unet_loras + network.text_encoder_loras
-    for lora in loras :
-        lora_name = lora.lora_name
-        original_weight = lora.org_weight
-        mean = torch.mean(original_weight).item()
-        std = torch.std(original_weight).item()
-        #if 'org_weight' in layer:
-        print(f'{lora_name} : mean {mean} : std {std}')
+    original_module = 'original_module.txt'
+    with open(original_module, 'w') as f :
+        loras = network.unet_loras + network.text_encoder_loras
+        for lora in loras :
+            lora_name = lora.lora_name
+            original_weight = lora.org_weight
+            mean = torch.mean(original_weight).item()
+            std = torch.std(original_weight).item()
+            #if 'org_weight' in layer:
+            f.write(f'{lora_name} : mean {mean} : std {std}\n')
     """
     #### check weights_sd
     file_name = args.file_name

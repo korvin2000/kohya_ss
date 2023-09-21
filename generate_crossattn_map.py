@@ -2391,7 +2391,7 @@ def main(args):
     loras = network.unet_loras + network.text_encoder_loras
     for lora in loras :
         lora_name = lora.lora_name
-        up_weight = lora.lora_up.weight
+        up_weight = lora.lora_up.weight.data
         down_weight = lora.lora_down.weight
         print(f'up_weight : {up_weight}')
     """

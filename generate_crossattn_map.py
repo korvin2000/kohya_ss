@@ -2411,7 +2411,7 @@ def main(args):
                 lora_weight =  torch.nn.functional.conv2d(down_weight.permute(1, 0, 2, 3), up_weight).permute(1, 0, 2, 3)
             mean = torch.mean(lora_weight).item()
             std = torch.std(lora_weight).item()
-            f.write(f'[{lora.is_linear}] {lora_name} : {lora_weight}\n')
+            f.write(f'{lora_name} : mean {mean} std {std}\n')
 
     """
     org_state_dict = network.state_dict()

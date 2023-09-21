@@ -2310,7 +2310,7 @@ def main(args):
         vgg16_model.to(dtype).to(device)
 
     print(f'args.network_module : {args.network_module}')
-    network_module = importlib.import_module(args.network_module)
+    network_module = importlib.import_module(args.network_module[0])
     # networkを組み込む
     """
     if args.network_module:

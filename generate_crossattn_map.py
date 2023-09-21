@@ -2771,7 +2771,7 @@ if __name__ == "__main__":
     parser = setup_parser()
     parser.add_argument("--device", default='cuda')
     parser.add_argument("--target_token", type=str, default = 'haibara')
-    parser.add_argument("--image_dir", type=str, default='./result/haibara_out_block/attention_map/haibara_20230920132357_e000029_07.png')
+    parser.add_argument("--image_dir", type=str)
     parser.add_argument("--save_base_folder", type=str, default='./result/haibara_out_block/attention_map')
     args = parser.parse_args()
     main(args)

@@ -2309,6 +2309,7 @@ def main(args):
     if vgg16_model is not None:
         vgg16_model.to(dtype).to(device)
 
+    print(f'args.network_module : {args.network_module}')
     network_module = importlib.import_module(args.network_module)
     # networkを組み込む
     """

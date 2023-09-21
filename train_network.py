@@ -751,6 +751,7 @@ class NetworkTrainer:
         # training loop
         if is_main_process :
             gradient_dict = {}
+            loss_dict = {}
         for epoch in range(num_train_epochs):
             accelerator.print(f"\nepoch {epoch+1}/{num_train_epochs}")
             current_epoch.value = epoch + 1
@@ -879,8 +880,10 @@ class NetworkTrainer:
                 else:
                     loss_total -= loss_list[step]
                     loss_list[step] = current_loss
+
                 loss_total += current_loss
                 avr_loss = loss_total / len(loss_list)
+                loss_dict[global_step] = avr_loss
                 logs = {"loss": avr_loss}  # , "lr": lr_scheduler.get_last_lr()[0]}
                 progress_bar.set_postfix(**logs)
 
@@ -942,6 +945,11 @@ class NetworkTrainer:
             import pickle
             with open(gradient_save_dir, 'wb') as fw:
                 pickle.dump(gradient_dict, fw)
+
+            print("loss recording")
+            loss_save_dir = os.path.join(record_save_dir, "loss.pickle")
+            with open(loss_save_dir, 'wb') as fw:
+                pickle.dump(loss_dict, fw)
 
 
 def setup_parser() -> argparse.ArgumentParser:

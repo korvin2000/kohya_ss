@@ -2399,7 +2399,7 @@ def main(args):
     for layer in org_state_dict.keys():
         if 'org_weight' not in layer:
             network.state_dict()[layer] = weights_sd[layer]
-
+    """
     #### check weights_sd
     file_name = args.file_name
     with open(file_name, 'w') as f :
@@ -2409,6 +2409,19 @@ def main(args):
                 mean = torch.mean(weight).item()
                 std = torch.std(weight).item()
                 f.write(f'{layer} : mean {mean} : std {std}\n')
+    """
+    file_name = args.file_name
+    with open(file_name, 'w') as f:
+        for layer in org_state_dict.keys():
+            if 'org_weight' in layer:
+                weight = org_state_dict[layer]
+                mean = torch.mean(weight).item()
+                std = torch.std(weight).item()
+                f.write(f'{layer} : mean {mean} : std {std}\n')
+        
+
+
+
 
 
 

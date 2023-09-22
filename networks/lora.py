@@ -890,7 +890,6 @@ class LoRANetwork(torch.nn.Module):
                             else :
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
-                                        print(f'{block} is loading ')
                                         lora = module_class(lora_name,
                                                             child_module,
                                                             self.multiplier,
@@ -1044,7 +1043,6 @@ class LoRANetwork(torch.nn.Module):
     def prepare_optimizer_params(self, text_encoder_lr, unet_lr, default_lr):
         self.requires_grad_(True)
         all_params = []
-
         def enumerate_params(loras):
             params = []
             for lora in loras:
@@ -1066,7 +1064,7 @@ class LoRANetwork(torch.nn.Module):
                     if idx not in block_idx_to_lora:
                         block_idx_to_lora[idx] = []
                     block_idx_to_lora[idx].append(lora)
-
+                print(f'block_idx_to_lora : {block_idx_to_lora}')
                 # blockごとにパラメータを設定する
                 for idx, block_loras in block_idx_to_lora.items():
                     param_data = {"params": enumerate_params(block_loras)}

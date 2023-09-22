@@ -362,6 +362,7 @@ class NetworkTrainer:
             for param in params:
                 param_dict = {"lr": lr, "params": param}
                 all_params.append(param_dict)
+        print(f'len of all_params : {len(all_params)}')
         optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, all_params)
 
         # dataloaderを準備する

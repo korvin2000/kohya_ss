@@ -1068,16 +1068,15 @@ class LoRANetwork(torch.nn.Module):
                 # blockごとにパラメータを設定する
                 for idx, block_loras in block_idx_to_lora.items():
                     # block_loras = [modules, ... ]
+                    # every 16 blocks
                     param_data = {"params": enumerate_params(block_loras)}
                     if unet_lr is not None:
                         final_lr = unet_lr * self.get_lr_weight(block_loras[0])
                         param_data["lr"] = final_lr
-                        print(f'block {idx} lr: {final_lr}')
                     elif default_lr is not None:
                         param_data["lr"] = default_lr * self.get_lr_weight(block_loras[0])
                     if ("lr" in param_data) and (param_data["lr"] == 0):
                         continue
-
                     all_params.append(param_data)
 
             else:

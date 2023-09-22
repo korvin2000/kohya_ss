@@ -144,7 +144,7 @@ def cache_to_disk(args: argparse.Namespace) -> None:
 
             image_infos = []
             for i, (image, absolute_path, resized_size) in enumerate(zip(images, absolute_paths, resized_sizes)):
-                image_info = train_util.ImageInfo(absolute_path, 1, "dummy", False, absolute_path)
+                image_info = train_util.ImageInfo(absolute_path, 1, 1, "dummy", False, absolute_path)
                 image_info.image = image
                 image_info.bucket_reso = bucket_reso
                 image_info.resized_size = resized_size

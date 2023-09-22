@@ -12,6 +12,7 @@ import toml
 
 from tqdm import tqdm
 import torch
+from torch import Tensor
 from accelerate.utils import set_seed
 from diffusers import DDPMScheduler
 from library import model_util
@@ -35,6 +36,22 @@ from library.custom_train_functions import (
     add_v_prediction_like_loss,
 )
 
+# TODO make this into a context-manager, so we can undo it after the U-NET
+# Super hacky way to add Tensor-multipliers!
+def hijack_mul(self: Tensor, other: Tensor | float) -> Tensor:
+    if self.ndim == 1:
+        if isinstance(other, Tensor):
+            factor = other.size(0) // self.size(0)
+
+            self = self.repeat_interleave(factor, dim=0).view(-1,*[1]*(other.ndim-1))
+    elif isinstance(other, Tensor) and other.ndim == 1:
+        factor = self.size(0) // other.size(0)
+        other = other.repeat_interleave(factor, dim=0).view(-1,*[1]*(self.ndim-1))
+
+    return torch.mul(self, other)
+    
+    
+Tensor.__mul__ = hijack_mul
 
 class NetworkTrainer:
     def __init__(self):
@@ -539,6 +556,7 @@ class NetworkTrainer:
                     subset_metadata = {
                         "img_count": subset.img_count,
                         "num_repeats": subset.num_repeats,
+                        "multiplier": subset.multiplier,
                         "color_aug": bool(subset.color_aug),
                         "flip_aug": bool(subset.flip_aug),
                         "random_crop": bool(subset.random_crop),
@@ -728,6 +746,11 @@ class NetworkTrainer:
             network.on_epoch_start(text_encoder, unet)
 
             for step, batch in enumerate(train_dataloader):
+                # Set multiplier for LoRA layers
+                multiplier = batch['multiplier'].to(accelerator.device, vae_dtype)
+                multiplier.batch_broadcast = True
+                network.set_multiplier(multiplier)
+
                 current_step.value = global_step
                 with accelerator.accumulate(network):
                     on_step_start(text_encoder, unet)
@@ -773,6 +796,7 @@ class NetworkTrainer:
                         noise_pred = self.call_unet(
                             args, accelerator, unet, noisy_latents, timesteps, text_encoder_conds, batch, weight_dtype
                         )
+                        network.set_multiplier(1) # reverse
 
                     if args.v_parameterization:
                         # v-parameterization training
@@ -842,7 +866,7 @@ class NetworkTrainer:
                     loss_list[step] = current_loss
                 loss_total += current_loss
                 avr_loss = loss_total / len(loss_list)
-                logs = {"loss": avr_loss}  # , "lr": lr_scheduler.get_last_lr()[0]}
+                logs = {"loss": avr_loss, "multiplier": multiplier.tolist()}  # , "lr": lr_scheduler.get_last_lr()[0]}
                 progress_bar.set_postfix(**logs)
 
                 if args.scale_weight_norms:

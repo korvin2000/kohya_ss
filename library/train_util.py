@@ -1,4 +1,5 @@
 # common functions for training
+from typing_extensions import Self
 
 import argparse
 import ast
@@ -110,14 +111,15 @@ IMAGE_TRANSFORMS = transforms.Compose(
     ]
 )
 
-TEXT_ENCODER_OUTPUTS_CACHE_SUFFIX = "_te_outputs.npz"
+TEXT_ENCODER_OUTPUTS_CACHE_SUFFIX = "_te_outputs.npz"   
 
 
 class ImageInfo:
-    def __init__(self, image_key: str, num_repeats: int, caption: str, is_reg: bool, absolute_path: str) -> None:
+    def __init__(self, image_key: str, num_repeats: int, multiplier: float, caption: str, is_reg: bool, absolute_path: str) -> None:
         self.image_key: str = image_key
         self.num_repeats: int = num_repeats
         self.caption: str = caption
+        self.multiplier: float = multiplier
         self.is_reg: bool = is_reg
         self.absolute_path: str = absolute_path
         self.image_size: Tuple[int, int] = None
@@ -331,6 +333,7 @@ class BaseSubset:
         self,
         image_dir: Optional[str],
         num_repeats: int,
+        multiplier: float,
         shuffle_caption: bool,
         keep_tokens: int,
         color_aug: bool,
@@ -347,6 +350,7 @@ class BaseSubset:
     ) -> None:
         self.image_dir = image_dir
         self.num_repeats = num_repeats
+        self.multiplier = multiplier
         self.shuffle_caption = shuffle_caption
         self.keep_tokens = keep_tokens
         self.color_aug = color_aug
@@ -373,6 +377,7 @@ class DreamBoothSubset(BaseSubset):
         class_tokens: Optional[str],
         caption_extension: str,
         num_repeats,
+        multiplier: float,
         shuffle_caption,
         keep_tokens,
         color_aug,
@@ -392,6 +397,7 @@ class DreamBoothSubset(BaseSubset):
         super().__init__(
             image_dir,
             num_repeats,
+            multiplier,
             shuffle_caption,
             keep_tokens,
             color_aug,
@@ -425,6 +431,7 @@ class FineTuningSubset(BaseSubset):
         image_dir,
         metadata_file: str,
         num_repeats,
+        multiplier: float,
         shuffle_caption,
         keep_tokens,
         color_aug,
@@ -444,6 +451,7 @@ class FineTuningSubset(BaseSubset):
         super().__init__(
             image_dir,
             num_repeats,
+            multiplier,
             shuffle_caption,
             keep_tokens,
             color_aug,
@@ -474,6 +482,7 @@ class ControlNetSubset(BaseSubset):
         conditioning_data_dir: str,
         caption_extension: str,
         num_repeats,
+        multiplier: float,
         shuffle_caption,
         keep_tokens,
         color_aug,
@@ -493,6 +502,7 @@ class ControlNetSubset(BaseSubset):
         super().__init__(
             image_dir,
             num_repeats,
+            multiplier,
             shuffle_caption,
             keep_tokens,
             color_aug,
@@ -1050,6 +1060,7 @@ class BaseDataset(torch.utils.data.Dataset):
         input_ids2_list = []
         latents_list = []
         images = []
+        multiplier = []
         original_sizes_hw = []
         crop_top_lefts = []
         target_sizes_hw = []
@@ -1183,6 +1194,9 @@ class BaseDataset(torch.utils.data.Dataset):
                             token_caption2 = self.get_input_ids(caption, self.tokenizers[1])
                         input_ids2_list.append(token_caption2)
 
+            # multiplier
+            multiplier.append(image_info.multiplier)
+
         example = {}
         example["loss_weights"] = torch.FloatTensor(loss_weights)
 
@@ -1226,6 +1240,8 @@ class BaseDataset(torch.utils.data.Dataset):
         example["crop_top_lefts"] = torch.stack([torch.LongTensor(x) for x in crop_top_lefts])
         example["target_sizes_hw"] = torch.stack([torch.LongTensor(x) for x in target_sizes_hw])
         example["flippeds"] = flippeds
+
+        example["multiplier"] = torch.tensor(multiplier)
 
         if self.debug_dataset:
             example["image_keys"] = bucket[image_index : image_index + self.batch_size]
@@ -1430,7 +1446,7 @@ class DreamBoothDataset(BaseDataset):
                 num_train_images += subset.num_repeats * len(img_paths)
 
             for img_path, caption in zip(img_paths, captions):
-                info = ImageInfo(img_path, subset.num_repeats, caption, subset.is_reg, img_path)
+                info = ImageInfo(img_path, subset.num_repeats, subset.multiplier, caption, subset.is_reg, img_path)
                 if subset.is_reg:
                     reg_infos.append(info)
                 else:
@@ -1550,7 +1566,7 @@ class FineTuningDataset(BaseDataset):
                 if caption is None:
                     caption = ""
 
-                image_info = ImageInfo(image_key, subset.num_repeats, caption, False, abs_path)
+                image_info = ImageInfo(image_key, subset.num_repeats, subset.multiplier, caption, False, abs_path)
                 image_info.image_size = img_md.get("train_resolution")
 
                 if not subset.color_aug and not subset.random_crop:

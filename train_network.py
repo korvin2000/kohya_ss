@@ -341,9 +341,9 @@ class NetworkTrainer:
         accelerator.print("prepare optimizer, data loader etc.")
 
         if args.unet_blockwise_lr :
-            network.set_block_lr_weight(up_lr_weight   = [1,1,1,1,1,1,1,1,1,1,1,1], # 0 ~ 11
-                                        mid_lr_weight  = 1,
-                                        down_lr_weight = [1,1,1,1,1,1,1,1,1,1,1,1])
+            network.set_block_lr_weight(up_lr_weight   = args.up_lr_weight, # 0 ~ 11
+                                        mid_lr_weight  = args.mid_lr_weight,
+                                        down_lr_weight = args.down_lr_weight)
 
         # 後方互換性を確保するよ
         try:
@@ -841,22 +841,18 @@ class NetworkTrainer:
                     if is_main_process :
                         i = 0
                         wandb_logs = {}
+                        grad_norm_dict = {}
+
                         for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
-                            if 'down_blocks_0' in layer_name :
-                                grad = param_dict['params'][0].grad.data
-                                print(f'{layer_name} : {grad}')
-
-
-
-
+                            #grad_norm_dict[layer_name] = grad_norm
                             wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
                             try:
                                 gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
                             except:
                                 gradient_dict[layer_name] = []
                                 gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
-
                         wandb.log(wandb_logs, step=global_step)
+
                     optimizer.step()
                     lr_scheduler.step()
                     optimizer.zero_grad(set_to_none=True)
@@ -1060,6 +1056,13 @@ if __name__ == "__main__":
     parser.add_argument("--wandb_init_name", type=str)
     parser.add_argument("--wandb_key", type=str)
     parser.add_argument("--unet_blockwise_lr", action = 'store_true')
+    parser.add_argument("--up_lr_weight", type=arg_as_list,
+                        default=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    parser.add_argument("--mid_lr_weight", type=float,
+                        default=1)
+    parser.add_argument("--down_lr_weight", type=arg_as_list,
+                        default=[1,1,1,1,1,1,1,1,1,1,1,1])
+
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

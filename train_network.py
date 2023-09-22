@@ -1048,6 +1048,7 @@ if __name__ == "__main__":
     parser.add_argument("--process_title", type=str, default = 'parksooyeon')
     parser.add_argument("--wandb_init_name", type=str)
     parser.add_argument("--wandb_key", type=str)
+    parser.add_argument("--unet_blockwise_lr", action = 'store_true')
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

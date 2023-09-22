@@ -341,9 +341,9 @@ class NetworkTrainer:
         accelerator.print("prepare optimizer, data loader etc.")
 
         if args.unet_blockwise_lr :
-            network.set_block_lr_weight(up_lr_weight   = [1,1,1,5,5,5,10,10,10,10,10,10], # 0 ~ 11
+            network.set_block_lr_weight(up_lr_weight   = [1,1,1,1,1,1,1,1,1,1,1,1], # 0 ~ 11
                                         mid_lr_weight  = 1,
-                                        down_lr_weight = [3,3,3,2,2,2,2,2,2,2,2,2])
+                                        down_lr_weight = [1,1,1,1,1,1,1,1,1,1,1,1])
 
         # 後方互換性を確保するよ
         try:
@@ -842,6 +842,13 @@ class NetworkTrainer:
                         i = 0
                         wandb_logs = {}
                         for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
+                            if 'down_blocks_0' in layer_name :
+                                check = param_dict['params']
+                                print(check)
+
+
+
+
                             wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
                             try:
                                 gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())

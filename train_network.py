@@ -1057,7 +1057,7 @@ if __name__ == "__main__":
     parser.add_argument("--wandb_key", type=str)
     parser.add_argument("--unet_blockwise_lr", action = 'store_true')
     parser.add_argument("--up_lr_weight", type=arg_as_list,
-                        default=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+                        default= [1,1,1,5,5,5,10,10,10,10,10,10])
     parser.add_argument("--mid_lr_weight", type=float,
                         default=1)
     parser.add_argument("--down_lr_weight", type=arg_as_list,

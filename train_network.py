@@ -341,7 +341,7 @@ class NetworkTrainer:
         accelerator.print("prepare optimizer, data loader etc.")
 
         if args.unet_blockwise_lr :
-            network.set_block_lr_weight(up_lr_weight   = [1,1,1,4,4,4,5,5,5,5,5,5], # 0 ~ 11
+            network.set_block_lr_weight(up_lr_weight   = [1,1,1,5,5,5,10,10,10,10,10,10], # 0 ~ 11
                                         mid_lr_weight  = 1,
                                         down_lr_weight = [3,3,3,2,2,2,2,2,2,2,2,2])
 

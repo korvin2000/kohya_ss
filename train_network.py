@@ -227,6 +227,7 @@ class NetworkTrainer:
         with open(os.path.join(record_save_dir, 'config.json'), 'w') as f:
             json.dump(vars(args), f, indent=4)
 
+        wandb.login(key=args.wandb_key)
         if is_main_process:
             print(" make wandb process log file")
             wandb.init(project=args.wandb_init_name)
@@ -1046,7 +1047,7 @@ if __name__ == "__main__":
     parser.add_argument("--unwrap", action = 'store_true')
     parser.add_argument("--process_title", type=str, default = 'parksooyeon')
     parser.add_argument("--wandb_init_name", type=str)
-
+    parser.add_argument("--wandb_key", type=str)
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

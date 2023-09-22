@@ -843,8 +843,8 @@ class NetworkTrainer:
                         wandb_logs = {}
                         for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
                             if 'down_blocks_0' in layer_name :
-                                check = param_dict['params']
-                                print(check)
+                                grad = param_dict['params'][0].grad.data
+                                print(f'{layer_name} : {grad.norm(2)}')
 
 
 

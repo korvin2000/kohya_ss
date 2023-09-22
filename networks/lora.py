@@ -1054,36 +1054,41 @@ class LoRANetwork(torch.nn.Module):
             if text_encoder_lr is not None:
                 param_data["lr"] = text_encoder_lr
             all_params.append(param_data)
+        test = 'test.txt'
+        with open(test, 'w') as f:
+            if self.unet_loras:
+                if self.block_lr:
+                    # 学習率のグラフをblockごとにしたいので、blockごとにloraを分類
+                    block_idx_to_lora = {}
+                    for lora in self.unet_loras:
+                        idx = get_block_index(lora.lora_name)
 
-        if self.unet_loras:
-            if self.block_lr:
-                # 学習率のグラフをblockごとにしたいので、blockごとにloraを分類
-                block_idx_to_lora = {}
-                for lora in self.unet_loras:
-                    idx = get_block_index(lora.lora_name)
-                    if idx not in block_idx_to_lora:
-                        block_idx_to_lora[idx] = []
-                    block_idx_to_lora[idx].append(lora)
 
-                # blockごとにパラメータを設定する
-                for idx, block_loras in block_idx_to_lora.items():
-                    # block_loras = [modules, ... ]
-                    # every 16 blocks
-                    param_data = {"params": enumerate_params(block_loras)}
+                        if idx not in block_idx_to_lora:
+                            block_idx_to_lora[idx] = []
+                        block_idx_to_lora[idx].append(lora)
+                    for idx in block_idx_to_lora.keys() :
+                        for b in block_idx_to_lora[idx]:
+                            f.write(f'{idx} : {b.lora_name} \n')
+                    # blockごとにパラメータを設定する
+                    for idx, block_loras in block_idx_to_lora.items():
+                        # block_loras = [modules, ... ]
+                        # every 16 blocks
+                        param_data = {"params": enumerate_params(block_loras)}
+                        if unet_lr is not None:
+                            final_lr = unet_lr * self.get_lr_weight(block_loras[0])
+                            param_data["lr"] = final_lr
+                        elif default_lr is not None:
+                            param_data["lr"] = default_lr * self.get_lr_weight(block_loras[0])
+                        if ("lr" in param_data) and (param_data["lr"] == 0):
+                            continue
+                        all_params.append(param_data)
+
+                else:
+                    param_data = {"params": enumerate_params(self.unet_loras)}
                     if unet_lr is not None:
-                        final_lr = unet_lr * self.get_lr_weight(block_loras[0])
-                        param_data["lr"] = final_lr
-                    elif default_lr is not None:
-                        param_data["lr"] = default_lr * self.get_lr_weight(block_loras[0])
-                    if ("lr" in param_data) and (param_data["lr"] == 0):
-                        continue
+                        param_data["lr"] = unet_lr
                     all_params.append(param_data)
-
-            else:
-                param_data = {"params": enumerate_params(self.unet_loras)}
-                if unet_lr is not None:
-                    param_data["lr"] = unet_lr
-                all_params.append(param_data)
 
         return all_params
 

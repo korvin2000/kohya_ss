@@ -354,7 +354,7 @@ class NetworkTrainer:
         except TypeError:
             accelerator.print("Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)")
             trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr)
-
+        print(f'len of trainable_params: {len(trainable_params)}')
         all_params = []
         for trainable_param in trainable_params:
             lr = trainable_param["lr"]

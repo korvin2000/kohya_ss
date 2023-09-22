@@ -695,6 +695,7 @@ def get_block_index(lora_name: str) -> int:
 
     elif "mid_block_" in lora_name:
         block_idx = LoRANetwork.NUM_OF_BLOCKS  # idx=12
+    print(f'lora_name : {lora_name}, block_idx : {block_idx}')
 
     return block_idx
 
@@ -849,7 +850,7 @@ class LoRANetwork(torch.nn.Module):
                                     alpha = modules_alpha[lora_name]
                             elif is_unet and block_dims is not None:
                                 # U-Netでblock_dims指定あり
-                                block_idx = get_block_index(lora_name)
+                                block_idx = get_block_index(lora_name) # block
                                 if is_linear or is_conv2d_1x1:
                                     dim = block_dims[block_idx]
                                     alpha = block_alphas[block_idx]
@@ -1021,7 +1022,7 @@ class LoRANetwork(torch.nn.Module):
         if block_idx < 0:
             return lr_weight
 
-        if block_idx < LoRANetwork.NUM_OF_BLOCKS:
+        if block_idx < LoRANetwork.NUM_OF_BLOCKS: # 12
             if self.down_lr_weight != None:
                 lr_weight = self.down_lr_weight[block_idx]
         elif block_idx == LoRANetwork.NUM_OF_BLOCKS:
@@ -1056,6 +1057,7 @@ class LoRANetwork(torch.nn.Module):
                 block_idx_to_lora = {}
                 for lora in self.unet_loras:
                     idx = get_block_index(lora.lora_name)
+                    print(f'{lora.lora_name} -> {idx}')
                     if idx not in block_idx_to_lora:
                         block_idx_to_lora[idx] = []
                     block_idx_to_lora[idx].append(lora)

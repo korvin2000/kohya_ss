@@ -341,9 +341,7 @@ class NetworkTrainer:
         accelerator.print("prepare optimizer, data loader etc.")
 
         if args.unet_blockwise_lr :
-            network.set_block_lr_weight(up_lr_weight = 5 * args.unet_lr,
-                                        mid_lr_weight = 1 * args.unet_lr,
-                                        down_lr_weight = 2 * args.unet_lr,)
+            network.set_block_lr_weight()
 
         # 後方互換性を確保するよ
         try:

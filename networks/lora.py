@@ -23,6 +23,13 @@ BLOCKS = ["text_model",
           "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
           "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
           "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
+#-------------------------------------------#
+# block index                               #
+# 1,2,(3) / 4,5,(6) / 7,8,(9) / (10,11)     #
+# 12, (13,14,15)                            #
+# 16,17,18 / 19,20,21 / 22,23,24            #
+#-------------------------------------------#
+
 class LoRAModule(torch.nn.Module):
     """
     replaces forward method of the original Linear, instead of replacing the original Linear module.
@@ -695,7 +702,6 @@ def get_block_index(lora_name: str) -> int:
 
     elif "mid_block_" in lora_name:
         block_idx = LoRANetwork.NUM_OF_BLOCKS  # idx=12
-    print(f'lora_name : {lora_name}, block_idx : {block_idx}')
 
     return block_idx
 
@@ -1057,7 +1063,6 @@ class LoRANetwork(torch.nn.Module):
                 block_idx_to_lora = {}
                 for lora in self.unet_loras:
                     idx = get_block_index(lora.lora_name)
-                    print(f'{lora.lora_name} -> {idx}')
                     if idx not in block_idx_to_lora:
                         block_idx_to_lora[idx] = []
                     block_idx_to_lora[idx].append(lora)
@@ -1065,7 +1070,6 @@ class LoRANetwork(torch.nn.Module):
                 # blockごとにパラメータを設定する
                 for idx, block_loras in block_idx_to_lora.items():
                     param_data = {"params": enumerate_params(block_loras)}
-
                     if unet_lr is not None:
                         param_data["lr"] = unet_lr * self.get_lr_weight(block_loras[0])
                     elif default_lr is not None:

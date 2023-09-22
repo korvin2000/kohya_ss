@@ -341,11 +341,16 @@ class NetworkTrainer:
         accelerator.print("prepare optimizer, data loader etc.")
 
         if args.unet_blockwise_lr :
-            network.set_block_lr_weight()
+            network.set_block_lr_weight(up_lr_weight   = [5,5,5,5,5,5,5,5,5,5,5,5],
+                                        mid_lr_weight  = 1,
+                                        down_lr_weight = [2,2,2,2,2,2,2,2,2,2,2,2])
 
         # 後方互換性を確保するよ
         try:
-            trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr, args.learning_rate)
+            trainable_params = network.prepare_optimizer_params(text_encoder_lr=args.text_encoder_lr,
+                                                                unet_lr=args.unet_lr,
+                                                                default_lr=args.learning_rate)
+
         except TypeError:
             accelerator.print("Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)")
             trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr)

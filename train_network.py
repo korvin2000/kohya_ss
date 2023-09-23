@@ -847,27 +847,45 @@ class NetworkTrainer:
                                         print(f'gradient : {gradient}')
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 2
-                                        scaling_factor = optimal_norm / original_norm
+                                        if optimal_norm > 0 :
+                                            scaling_factor = optimal_norm / original_norm
+                                        else :
+                                            scaling_factor = 1
                                     elif 'down_blocks_1' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 2
-                                        scaling_factor = optimal_norm / original_norm
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
                                     elif 'down_blocks_2' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 2
-                                        scaling_factor = optimal_norm / original_norm
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
                                     elif 'up_blocks_1' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 4
-                                        scaling_factor = optimal_norm / original_norm
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
                                     elif 'up_blocks_2' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 10
-                                        scaling_factor = optimal_norm / original_norm
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
                                     elif 'up_blocks_3' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 10
-                                        scaling_factor = optimal_norm / original_norm
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
 
 
 

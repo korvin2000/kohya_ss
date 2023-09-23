@@ -504,7 +504,7 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
 def generate_dreambooth_subsets_config_by_subdirs(train_data_dir: Optional[str] = None, reg_data_dir: Optional[str] = None):
   def extract_dreambooth_params(name: str) -> Tuple[int, str, float]:
     # {number}_captions [multiplier]?
-    pattern = r'(\d+)_([^\[\]\W]+)(?:\s*\[([+-]?\d+\.?\d*)\])?'
+    pattern = r'(\d+)_([^\[\]]+)(?:\s*\[([+-]?\d+\.?\d*)\])?'
     match = re.match(pattern, name)
 
     if match is None:

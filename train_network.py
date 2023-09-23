@@ -842,15 +842,14 @@ class NetworkTrainer:
                                 if key in layer_name :
                                     block_name = layer_name.split(key)[0]
                                     if 'down_blocks_0' in layer_name:
-                                        print(f'layer_name : {layer_name}')
                                         gradient = param_dict['params'][0].data
-                                        print(f'gradient : {gradient}')
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 2
                                         if optimal_norm > 0 :
                                             scaling_factor = optimal_norm / original_norm
                                         else :
                                             scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'down_blocks_1' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 2
@@ -858,6 +857,7 @@ class NetworkTrainer:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
                                             scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'down_blocks_2' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 2
@@ -865,6 +865,7 @@ class NetworkTrainer:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
                                             scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'up_blocks_1' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 4
@@ -872,6 +873,7 @@ class NetworkTrainer:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
                                             scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'up_blocks_2' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 10
@@ -879,6 +881,7 @@ class NetworkTrainer:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
                                             scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'up_blocks_3' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
                                         optimal_norm = standard_dict[key] * 10
@@ -886,15 +889,12 @@ class NetworkTrainer:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
                                             scaling_factor = 1
-
-
-
-
-
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                    else :
+                                        pass
                     optimizer.step()
                     lr_scheduler.step()
                     optimizer.zero_grad(set_to_none=True)
-
                 if args.scale_weight_norms:
                     keys_scaled, mean_norm, maximum_norm = network.apply_max_norm_regularization(
                         args.scale_weight_norms, accelerator.device

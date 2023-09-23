@@ -165,27 +165,16 @@ class NetworkTrainer:
                     print("Using DreamBooth method.")
                     user_config = {
                         "datasets": [
-                            {
-                                "subsets": config_util.generate_dreambooth_subsets_config_by_subdirs(
+                            {"subsets": config_util.generate_dreambooth_subsets_config_by_subdirs(
                                     args.train_data_dir, args.reg_data_dir
-                                )
-                            }
-                        ]
-                    }
+                                )}]}
                 else:
                     print("Training with captions.")
                     user_config = {
-                        "datasets": [
-                            {
-                                "subsets": [
-                                    {
-                                        "image_dir": args.train_data_dir,
+                        "datasets": [{"subsets": [
+                                    {"image_dir": args.train_data_dir,
                                         "metadata_file": args.in_json,
-                                    }
-                                ]
-                            }
-                        ]
-                    }
+                                    }]}]}
 
             blueprint = blueprint_generator.generate(user_config, args, tokenizer=tokenizer)
             train_dataset_group = config_util.generate_dataset_group_by_blueprint(blueprint.dataset_group)
@@ -842,16 +831,47 @@ class NetworkTrainer:
                         i = 0
                         wandb_logs = {}
                         grad_norm_dict = {}
+                        standard_dict = {}
+                        for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
+                            if 'mid' in layer_name :
+                                net_name  = layer_name.split('lora_unet_mid_block_attentions_0_')[1]
+                                standard_dict[net_name] = param_dict['params'][0].data.norm(2)
 
                         for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
-                            #grad_norm_dict[layer_name] = grad_norm
-                            wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
-                            try:
-                                gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
-                            except:
-                                gradient_dict[layer_name] = []
-                                gradient_dict[layer_name].append(param_dict['params'][0].grad.data.norm(2).item())
-                        wandb.log(wandb_logs, step=global_step)
+                            for key in standard_dict.keys() :
+                                if key in layer_name :
+                                    block_name = layer_name.split(key)[0]
+                                    if 'down_blocks_0' in layer_name:
+                                        print(f'layer_name : {layer_name}')
+                                        gradient = param_dict['params'][0].data
+                                        print(f'gradient : {gradient}')
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * 2
+                                        scaling_factor = optimal_norm / original_norm
+                                    elif 'down_blocks_1' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * 2
+                                        scaling_factor = optimal_norm / original_norm
+                                    elif 'down_blocks_2' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * 2
+                                        scaling_factor = optimal_norm / original_norm
+                                    elif 'up_blocks_1' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * 4
+                                        scaling_factor = optimal_norm / original_norm
+                                    elif 'up_blocks_2' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * 10
+                                        scaling_factor = optimal_norm / original_norm
+                                    elif 'up_blocks_3' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * 10
+                                        scaling_factor = optimal_norm / original_norm
+
+
+
+
 
                     optimizer.step()
                     lr_scheduler.step()

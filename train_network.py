@@ -844,7 +844,7 @@ class NetworkTrainer:
                                     if 'down_blocks_0' in layer_name:
                                         gradient = param_dict['params'][0].data
                                         original_norm = param_dict['params'][0].data.norm(2)
-                                        optimal_norm = standard_dict[key] * 2
+                                        optimal_norm = standard_dict[key] * args.down_blocks_0_norm_weight
                                         if optimal_norm > 0 :
                                             scaling_factor = optimal_norm / original_norm
                                         else :
@@ -852,7 +852,7 @@ class NetworkTrainer:
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'down_blocks_1' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
-                                        optimal_norm = standard_dict[key] * 2
+                                        optimal_norm = standard_dict[key] * args.down_blocks_1_norm_weight
                                         if optimal_norm > 0:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
@@ -860,7 +860,7 @@ class NetworkTrainer:
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'down_blocks_2' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
-                                        optimal_norm = standard_dict[key] * 2
+                                        optimal_norm = standard_dict[key] * args.down_blocks_2_norm_weight
                                         if optimal_norm > 0:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
@@ -868,7 +868,7 @@ class NetworkTrainer:
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'up_blocks_1' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
-                                        optimal_norm = standard_dict[key] * 4
+                                        optimal_norm = standard_dict[key] * args.up_blocks_1_norm_weight
                                         if optimal_norm > 0:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
@@ -876,7 +876,7 @@ class NetworkTrainer:
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'up_blocks_2' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
-                                        optimal_norm = standard_dict[key] * 10
+                                        optimal_norm = standard_dict[key] * args.up_blocks_2_norm_weight
                                         if optimal_norm > 0:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
@@ -884,7 +884,7 @@ class NetworkTrainer:
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                                     elif 'up_blocks_3' in layer_name:
                                         original_norm = param_dict['params'][0].data.norm(2)
-                                        optimal_norm = standard_dict[key] * 10
+                                        optimal_norm = standard_dict[key] * args.up_blocks_3_norm_weight
                                         if optimal_norm > 0:
                                             scaling_factor = optimal_norm / original_norm
                                         else:
@@ -1100,7 +1100,12 @@ if __name__ == "__main__":
                         default=1)
     parser.add_argument("--down_lr_weight", type=arg_as_list,
                         default=[1,1,1,1,1,1,1,1,1,1,1,1])
-
+    parser.add_argument("--down_blocks_0_norm_weight", type=float,default=2)
+    parser.add_argument("--down_blocks_1_norm_weight", type=float, default=2)
+    parser.add_argument("--down_blocks_2_norm_weight", type=float, default=2)
+    parser.add_argument("--up_blocks_1_norm_weight", type=float, default=4)
+    parser.add_argument("--up_blocks_2_norm_weight", type=float, default=10)
+    parser.add_argument("--up_blocks_3_norm_weight", type=float, default=10)
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

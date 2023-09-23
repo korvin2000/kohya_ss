@@ -1,8 +1,33 @@
-# LoRA custom Multiplier
+# LoRA Custom Multiplier (Ultra-LoRA)
 
-## How to use the LoRA-multiplier training?
+All of us train our LoRAs with a `multiplier=1`, but when it comes to inference, we often employ diverse multipliers. Thanks to insights from LECO, we've learned that negative multipliers can effectively eliminate concepts or create a slider-like LoRA. This naturally leads us to ponder: Can we actually train our LoRAs using different multipliers, and how might that be advantageous?
 
-Go to your Kohya-ss folder and execute this:
+## Why Custom Multipliers Matter
+
+Imagine you're aiming for the perfect photorealistic LoRA. You carefully select high-resolution photos and train your model with captions to achieve image perfection. However, the outcome heavily relies on the quality of your images and captions. Poor captions can result in subpar images. But why does this happen? The standard training process lacks guidance on your desired output.
+
+This is where custom-multipliers steps in. Instead of leaving your LoRA's fate to chance, you can actively guide it. Start by collecting a diverse set of images and perform batch image-to-image transformations on them using Stable-Diffusion. Make these images intentionally worse by adding bad positive prompts and applying light denoising. The result should be images that are ugly, lacking texture, details, and coherence. These distorted images are placed in a new folder. Create two other additional folders, where you blur the original photos and another where you add JPEF artifacts to them.
+
+Your folder structure will look like this:
+
+```
+images\4_high-quality [1]
+images\1_sd-deformed [-1.3]
+images\1_blur [-0.8]
+images\1_jpeg-artifacts [-0.4]
+```
+
+The number in brackets represents the `weight` used during training and inference. Each folder has the same amount of images. Also they share the captions! That is the main insight. You caption your original high-quality dataset, and then you just copy these captions to the distorted images folders. By adding captions from your high-quality images to all the distorted ones, you teach Stable-Diffusion to understand that negative multipliers should create monstrosities while positive multipliers should produce aesthetically pleasing results. In essence, you're creating a slider where changing the multiplier transforms the output from beautiful to ugly and back.
+
+But the concept doesn't stop there. You can apply this technique to various scenarios, such as training with positive multipliers for artwork and negative multipliers for realistic images or deformed artwork. The possibilities are endless.
+
+Another possibility is to train a face. Use inpainting to modify the person face while not making it deliberately too ungly or unatural. This will teach SD that we do not care at all about the person clothes, background etc. we only care about the person face.
+
+## How to Use the LoRA-Multiplier Training
+
+To harness the power of LoRA-multiplier training, follow these steps:
+
+1. Navigate to your Kohya-ss folder and execute the following commands:
 
 ```bash
 git remote add tfernd https://github.com/tfernd/kohya_ss-multiplier.git
@@ -10,7 +35,9 @@ git fetch tfernd
 git checkout tfernd/master
 ```
 
-This will use this fork as a remote repository so you can use the newest training for it, while it hasn't been merged with the original repo. Are you afraid? no fear, you can go back to your standard repo as:
+This sets up this fork as a remote repository, allowing you to access the latest training features before they're merged with the original repository.
+
+2. If you ever want to return to your standard repository, don't worry. You can revert to it with these commands:
 
 ```bash
 git remote remove tfernd
@@ -19,24 +46,6 @@ git pull origin main
 ```
 
 ---
-
-We train our LoRAs with a `multiplier=1`. However we use different multipliers during inference. LECO taught us that we can even use negative multipliers to either remove concepts or to make a slider-LoRA. So that begs the question. Can we train our LoRAs with different multipliers?
-
-This is a fork of Kohya repo (that hopefully will be pushed to the main repo one day). This fork introduces a new notation. `repeats_tag [multiplier]`. Example, have a folder like `8_car [-1]` and `8_bike [1]`. This will teach the LoRA that negative multipliers are cars while positive are bikes.
-
-This is a fork from Kohya's that allow custom multipliers. Inside your images/ folder, you usually have something like this: `12_style`. Where the first name is the number of repeatitions each image will be done in an epoch, while the second is a caption-tag (how it is used?). I offer a new syntax to extend this. Like this: `8_car [-0.9]`. This will train your LoRA with negative multipliers! If no brackets are used, it will default to 1.
-
-Why is this cool? Imagine negative weights as things we want to avoid. Like LECO(https://github.com/p1atdev/LECO) sliders. If you put drawings of your style with weights=1, you can add some others styles, or realistic images, or whatever, with negative weights!
-
-Image you want to train a face. You can use inpainting to inpaint a fake-face of a person to generate 4-8 variation of the SAME photo with different face. USe that as negative multiplier. So the LoRA will learn to pay attention only on the face. All the rest are the same. Neat, right?
-
-You can use positive multiplier for drawings, and negative for photos, and make a slider. If you use img2img to convert real images to drawings or vici-versa, you can create a very powerful LoRA-slider.
-
-LECO is cool and all, but we cannot control things, we can only control with prompt... Which sux.
-
-Another scenario. Get good high quality images, put with positive multiplier. Now make those image with blur, distortion etc... Make many distortions, put in negative multiplier!
-
-Note: If you have an image, and create $n$ (bad) images to be used as negative multiplier, dont forget to put the repeations as $repeats/n$! So they are trained by the same amount of iterations! Also, don't make your LoRA too big! Still testing!
 
 # Kohya's GUI
 

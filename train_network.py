@@ -837,58 +837,59 @@ class NetworkTrainer:
                     wandb_logs = {}
                     grad_norm_dict = {}
                     for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
-                        for key in standard_dict.keys() :
-                            if key in layer_name :
-                                block_name = layer_name.split(key)[0]
-                                if 'down_blocks_0' in layer_name:
-                                    gradient = param_dict['params'][0].data
-                                    original_norm = param_dict['params'][0].data.norm(2)
-                                    optimal_norm = standard_dict[key] * args.down_blocks_0_norm_weight
-                                    if optimal_norm > 0 :
-                                        scaling_factor = optimal_norm / original_norm
-                                    else :
-                                        scaling_factor = 1
-                                    param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
-                                elif 'down_blocks_1' in layer_name:
-                                    original_norm = param_dict['params'][0].data.norm(2)
-                                    optimal_norm = standard_dict[key] * args.down_blocks_1_norm_weight
-                                    if optimal_norm > 0:
-                                        scaling_factor = optimal_norm / original_norm
-                                    else:
-                                        scaling_factor = 1
-                                    param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
-                                elif 'down_blocks_2' in layer_name:
-                                    original_norm = param_dict['params'][0].data.norm(2)
-                                    optimal_norm = standard_dict[key] * args.down_blocks_2_norm_weight
-                                    if optimal_norm > 0:
-                                        scaling_factor = optimal_norm / original_norm
-                                    else:
-                                        scaling_factor = 1
-                                    param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
-                                elif 'up_blocks_1' in layer_name:
-                                    original_norm = param_dict['params'][0].data.norm(2)
-                                    optimal_norm = standard_dict[key] * args.up_blocks_1_norm_weight
-                                    if optimal_norm > 0:
-                                        scaling_factor = optimal_norm / original_norm
-                                    else:
-                                        scaling_factor = 1
-                                    param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
-                                elif 'up_blocks_2' in layer_name:
-                                    original_norm = param_dict['params'][0].data.norm(2)
-                                    optimal_norm = standard_dict[key] * args.up_blocks_2_norm_weight
-                                    if optimal_norm > 0:
-                                        scaling_factor = optimal_norm / original_norm
-                                    else:
-                                        scaling_factor = 1
-                                    param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
-                                elif 'up_blocks_3' in layer_name:
-                                    original_norm = param_dict['params'][0].data.norm(2)
-                                    optimal_norm = standard_dict[key] * args.up_blocks_3_norm_weight
-                                    if optimal_norm > 0:
-                                        scaling_factor = optimal_norm / original_norm
-                                    else:
-                                        scaling_factor = 1
-                                    param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                        if args.algorithm_test :
+                            for key in standard_dict.keys() :
+                                if key in layer_name :
+                                    block_name = layer_name.split(key)[0]
+                                    if 'down_blocks_0' in layer_name:
+                                        gradient = param_dict['params'][0].data
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * args.down_blocks_0_norm_weight
+                                        if optimal_norm > 0 :
+                                            scaling_factor = optimal_norm / original_norm
+                                        else :
+                                            scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                    elif 'down_blocks_1' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * args.down_blocks_1_norm_weight
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                    elif 'down_blocks_2' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * args.down_blocks_2_norm_weight
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                    elif 'up_blocks_1' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * args.up_blocks_1_norm_weight
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                    elif 'up_blocks_2' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * args.up_blocks_2_norm_weight
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                    elif 'up_blocks_3' in layer_name:
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * args.up_blocks_3_norm_weight
+                                        if optimal_norm > 0:
+                                            scaling_factor = optimal_norm / original_norm
+                                        else:
+                                            scaling_factor = 1
+                                        param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
                         if is_main_process:
                             wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
                             try:
@@ -1111,6 +1112,7 @@ if __name__ == "__main__":
     parser.add_argument("--up_blocks_1_norm_weight", type=float, default=4)
     parser.add_argument("--up_blocks_2_norm_weight", type=float, default=10)
     parser.add_argument("--up_blocks_3_norm_weight", type=float, default=10)
+    parser.add_argument("--algorithm_test", action = 'store_true')
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
 

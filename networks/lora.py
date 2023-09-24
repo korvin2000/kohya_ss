@@ -830,16 +830,16 @@ class LoRANetwork(torch.nn.Module):
             for name, module in root_module.named_modules():
                 if module.__class__.__name__ in target_replace_modules:
                     if 'Resnet' in module.__class__.__name__:
-                        print(f'lora check : {module.__class__.__name__}')
+                        #print(f'lora check : {module.__class__.__name__}')
                         for child_name, child_module in module.named_modules():
                             is_linear = child_module.__class__.__name__ == "Linear"
                             is_conv2d = child_module.__class__.__name__ == "Conv2d"
                             is_conv2d_1x1 = is_conv2d and child_module.kernel_size == (1, 1)
-                            print(f'child_name : {child_module.__class__.__name__}')
+                            #print(f'child_name : {child_module.__class__.__name__}')
                             if is_linear or is_conv2d:
                                 lora_name = prefix + "." + name + "." + child_name
                                 lora_name = lora_name.replace(".", "_")
-                                print(f'lora_name : {lora_name}')
+                                #print(f'lora_name : {lora_name}')
 
                     for child_name, child_module in module.named_modules():
                         is_linear = child_module.__class__.__name__ == "Linear"
@@ -850,9 +850,7 @@ class LoRANetwork(torch.nn.Module):
                             lora_name = lora_name.replace(".", "_")
                             dim = None
                             alpha = None
-
                             if modules_dim is not None:
-                                # モジュール指定あり
                                 if lora_name in modules_dim:
                                     dim = modules_dim[lora_name]
                                     alpha = modules_alpha[lora_name]
@@ -866,16 +864,14 @@ class LoRANetwork(torch.nn.Module):
                                     dim = conv_block_dims[block_idx]
                                     alpha = conv_block_alphas[block_idx]
                             else:
-                                # 通常、すべて対象とする
                                 if is_linear or is_conv2d_1x1:
                                     dim = self.lora_dim
                                     alpha = self.alpha
                                 elif self.conv_lora_dim is not None:
                                     dim = self.conv_lora_dim
                                     alpha = self.conv_alpha
-
+                            print(f'lora_name : {lora_name}')
                             if dim is None or dim == 0:
-                                # skipした情報を出力
                                 if is_linear or is_conv2d_1x1 or (self.conv_lora_dim is not None or conv_block_dims is not None):
                                     skipped.append(lora_name)
                                 continue

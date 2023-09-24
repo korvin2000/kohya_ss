@@ -215,32 +215,25 @@ class NetworkTrainer:
         os.makedirs(record_save_dir, exist_ok=True)
         with open(os.path.join(record_save_dir, 'config.json'), 'w') as f:
             json.dump(vars(args), f, indent=4)
-
         wandb.login(key=args.wandb_key)
         if is_main_process:
             print(" make wandb process log file")
             wandb.init(project=args.wandb_init_name)
             wandb.run.name = folder_name
-
         weight_dtype, save_dtype = train_util.prepare_dtype(args)
         vae_dtype = torch.float32 if args.no_half_vae else weight_dtype
-
         # モデルを読み込む
         model_version, text_encoder, vae, unet = self.load_target_model(args, weight_dtype, accelerator)
-
         # text_encoder is List[CLIPTextModel] or CLIPTextModel
         text_encoders = text_encoder if isinstance(text_encoder, list) else [text_encoder]
-
         # モデルに xformers とか memory efficient attention を組み込む
         train_util.replace_unet_modules(unet, args.mem_eff_attn, args.xformers, args.sdpa)
         if torch.__version__ >= "2.0.0":  # PyTorch 2.0.0 以上対応のxformersなら以下が使える
             vae.set_use_memory_efficient_attention_xformers(args.xformers)
-
         # 差分追加学習のためにモデルを読み込む
         sys.path.append(os.path.dirname(__file__))
         accelerator.print("import network module:", args.network_module)
         network_module = importlib.import_module(args.network_module)
-
         if args.base_weights is not None:
             # base_weights が指定されている場合は、指定された重みを読み込みマージする
             for i, weight_path in enumerate(args.base_weights):
@@ -252,10 +245,8 @@ class NetworkTrainer:
                 accelerator.print(f"merging module: {weight_path} with multiplier {multiplier}")
 
                 module, weights_sd = network_module.create_network_from_weights(
-                    multiplier, weight_path, vae, text_encoder, unet, for_inference=True
-                )
+                    multiplier, weight_path, vae, text_encoder, unet, for_inference=True)
                 module.merge_to(text_encoder, unet, weights_sd, weight_dtype, accelerator.device if args.lowram else "cpu")
-
             accelerator.print(f"all weights merged: {', '.join(args.base_weights)}")
 
         # 学習を準備する
@@ -269,21 +260,22 @@ class NetworkTrainer:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             gc.collect()
-
             accelerator.wait_for_everyone()
 
         # 必要ならテキストエンコーダーの出力をキャッシュする: Text Encoderはcpuまたはgpuへ移される
-        self.cache_text_encoder_outputs_if_needed(
-            args, accelerator, unet, vae, tokenizers, text_encoders, train_dataset_group, weight_dtype
-        )
+        self.cache_text_encoder_outputs_if_needed(args, accelerator, unet, vae, tokenizers, text_encoders,
+                                                  train_dataset_group, weight_dtype)
 
+        if is_main_process:
+            for name, module in unet.named_modules():
+                print(f'{name}: {module.__class__.__name__}')
+        """
         # prepare network
         net_kwargs = {}
         if args.network_args is not None:
             for net_arg in args.network_args:
                 key, value = net_arg.split("=")
                 net_kwargs[key] = value
-
         # if a new network is added in future, add if ~ then blocks for each network (;'∀')
         if args.dim_from_weights:
             network, _ = network_module.create_network_from_weights(1, args.network_weights, vae, text_encoder, unet, **net_kwargs)
@@ -299,10 +291,8 @@ class NetworkTrainer:
                     block_wise=args.block_wise,
                     neuron_dropout=args.network_dropout,
                     **net_kwargs,)
-
         if network is None:
             return
-
         if hasattr(network, "prepare_network"):
             network.prepare_network(args)
         if args.scale_weight_norms and not hasattr(network, "apply_max_norm_regularization"):
@@ -442,22 +432,16 @@ class NetworkTrainer:
         unet, network = train_util.transform_models_if_DDP([unet, network])
 
         if args.gradient_checkpointing:
-            # according to TI example in Diffusers, train is required
             unet.train()
             for t_enc in text_encoders:
                 t_enc.train()
-
-                # set top parameter requires_grad = True for gradient checkpointing works
                 t_enc.text_model.embeddings.requires_grad_(True)
         else:
             unet.eval()
             for t_enc in text_encoders:
                 t_enc.eval()
-
         del t_enc
-
         network.prepare_grad_etc(text_encoder, unet)
-
         if not cache_latents:  # キャッシュしない場合はVAEを使うのでVAEを準備する
             vae.requires_grad_(False)
             vae.eval()
@@ -855,7 +839,7 @@ class NetworkTrainer:
                                         if optimal_norm > 0 :
                                             param_dict['params'][0].data = param_dict['params'][0].data * (optimal_norm/original_norm)
 
-                                """
+                                
                                 if key in layer_name :
                                     block_name = layer_name.split(key)[0]
                                     if 'down_blocks_0' in layer_name:
@@ -907,7 +891,7 @@ class NetworkTrainer:
                                         else:
                                             scaling_factor = 1
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
-                                """
+                                
                         if is_main_process:
                             wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
                             try:
@@ -932,7 +916,7 @@ class NetworkTrainer:
                     progress_bar.update(1)
                     global_step += 1
                     self.sample_images(accelerator, args, None, global_step, accelerator.device, vae, tokenizer, text_encoder, unet)
-                    """
+                    
                     # 指定ステップごとにモデルを保存
                     if args.save_every_n_steps is not None and global_step % args.save_every_n_steps == 0:
                         accelerator.wait_for_everyone()
@@ -947,7 +931,7 @@ class NetworkTrainer:
                             if remove_step_no is not None:
                                 remove_ckpt_name = train_util.get_step_ckpt_name(args, "." + args.save_model_as, remove_step_no)
                                 remove_model(remove_ckpt_name)
-                    """
+                    
 
                 current_loss = loss.detach().item()
                 if epoch == 0:
@@ -1027,6 +1011,7 @@ class NetworkTrainer:
             with open(loss_save_dir, 'wb') as fw:
                 pickle.dump(loss_dict, fw)
 
+    """
 
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()

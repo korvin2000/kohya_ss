@@ -755,11 +755,9 @@ class LoRANetwork(torch.nn.Module):
     TEXT_ENCODER_TARGET_REPLACE_MODULE = ["CLIPAttention", "CLIPMLP"]
     LORA_PREFIX_UNET = "lora_unet"
     LORA_PREFIX_TEXT_ENCODER = "lora_te"
-
     # SDXL: must starts with LORA_PREFIX_TEXT_ENCODER
     LORA_PREFIX_TEXT_ENCODER1 = "lora_te1"
     LORA_PREFIX_TEXT_ENCODER2 = "lora_te2"
-
     def __init__(
         self,
         text_encoder: Union[List[CLIPTextModel], CLIPTextModel],
@@ -792,7 +790,6 @@ class LoRANetwork(torch.nn.Module):
         """
         super().__init__()
         self.multiplier = multiplier
-
         self.lora_dim = lora_dim
         self.alpha = alpha
         self.conv_lora_dim = conv_lora_dim
@@ -800,7 +797,6 @@ class LoRANetwork(torch.nn.Module):
         self.dropout = dropout
         self.rank_dropout = rank_dropout
         self.module_dropout = module_dropout
-
         if modules_dim is not None:
             print(f"create LoRA network from weights")
         elif block_dims is not None:
@@ -824,15 +820,10 @@ class LoRANetwork(torch.nn.Module):
             root_module: torch.nn.Module,
             target_replace_modules: List[torch.nn.Module],
         ) -> List[LoRAModule]:
-            prefix = (
-                self.LORA_PREFIX_UNET
+            prefix = (self.LORA_PREFIX_UNET
                 if is_unet
-                else (
-                    self.LORA_PREFIX_TEXT_ENCODER
-                    if text_encoder_idx is None
-                    else (self.LORA_PREFIX_TEXT_ENCODER1 if text_encoder_idx == 1 else self.LORA_PREFIX_TEXT_ENCODER2)
-                )
-            )
+                else (self.LORA_PREFIX_TEXT_ENCODER if text_encoder_idx is None
+                    else (self.LORA_PREFIX_TEXT_ENCODER1 if text_encoder_idx == 1 else self.LORA_PREFIX_TEXT_ENCODER2)))
             loras = []
             skipped = []
             for name, module in root_module.named_modules():
@@ -841,7 +832,6 @@ class LoRANetwork(torch.nn.Module):
                         is_linear = child_module.__class__.__name__ == "Linear"
                         is_conv2d = child_module.__class__.__name__ == "Conv2d"
                         is_conv2d_1x1 = is_conv2d and child_module.kernel_size == (1, 1)
-
                         if is_linear or is_conv2d:
                             lora_name = prefix + "." + name + "." + child_name
                             lora_name = lora_name.replace(".", "_")

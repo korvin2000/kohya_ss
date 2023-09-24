@@ -1,0 +1,16 @@
+lora_unet_up_blocks_2_attentions_2_proj_out.lora_down.weight : 5.832511469298873
+lora_unet_up_blocks_1_attentions_2_proj_out.lora_down.weight : 4.632371449290985
+lora_unet_up_blocks_2_attentions_1_proj_out.lora_down.weight : 4.288718957520327
+lora_unet_down_blocks_1_attentions_1_proj_out.lora_down.weight : 3.7335327475700995
+lora_unet_down_blocks_0_attentions_1_proj_out.lora_down.weight : 3.6486470828284454
+lora_unet_up_blocks_3_attentions_1_proj_out.lora_down.weight : 3.5659950470635167
+lora_unet_up_blocks_1_attentions_1_proj_out.lora_down.weight : 3.525287712647294
+lora_unet_up_blocks_2_attentions_0_proj_out.lora_down.weight : 3.4651484953582914
+lora_unet_down_blocks_0_attentions_0_proj_out.lora_down.weight : 3.246251112019732
+lora_unet_up_blocks_3_attentions_0_proj_out.lora_down.weight : 3.240695494482059
+lora_unet_down_blocks_1_attentions_0_proj_out.lora_down.weight : 3.1472407410972028
+lora_unet_up_blocks_3_attentions_2_proj_out.lora_down.weight : 2.8185113479393475
+lora_unet_up_blocks_1_attentions_0_proj_out.lora_down.weight : 2.506782783009337
+lora_unet_down_blocks_2_attentions_1_proj_out.lora_down.weight : 2.4894706111581106
+lora_unet_down_blocks_2_attentions_0_proj_out.lora_down.weight : 2.3028187828976407
+lora_unet_mid_block_attentions_0_proj_out.lora_down.weight : 1.0

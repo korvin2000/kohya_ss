@@ -266,10 +266,11 @@ class NetworkTrainer:
         self.cache_text_encoder_outputs_if_needed(args, accelerator, unet, vae, tokenizers, text_encoders,
                                                   train_dataset_group, weight_dtype)
 
+        """
         if is_main_process:
             for name, module in unet.named_modules():
                 print(f'{name}: {module.__class__.__name__}')
-
+        """
         # prepare network
         net_kwargs = {}
         if args.network_args is not None:
@@ -304,6 +305,13 @@ class NetworkTrainer:
         train_unet = not args.network_train_text_encoder_only
         train_text_encoder = not args.network_train_unet_only and not self.is_text_encoder_outputs_cached(args)
         network.apply_to(text_encoder, unet, train_text_encoder, train_unet)
+        if is_main_process:
+            unet_loras = network.unet_loras
+            for unet_lora in unet_loras :
+                print(f'loras: {unet_lora.lora_name}')
+
+
+
 
         if args.network_weights is not None:
             info = network.load_weights(args.network_weights)
@@ -1011,7 +1019,7 @@ class NetworkTrainer:
             with open(loss_save_dir, 'wb') as fw:
                 pickle.dump(loss_dict, fw)
 
-    
+
 
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()

@@ -86,6 +86,55 @@ def check_need_to_regularize(module: torch.nn, name: str, reg_fc: bool, names_to
 
     return False
 
+def precalculate_modules_to_check(modules_list: List[LoRAModule], names_to_reg: List[str] = None, regularize_fc_layers: bool = True):
+    """
+    Search for modules that need to be regularized by GOR.
+    """
+    real_modules_list = []
+    for lora_module in modules_list:
+        modules = [lora_module.lora_up, lora_module.lora_down]
+        for _idx, module in enumerate(modules):
+            module_name = lora_module.lora_name + '.' + 'lora_up' if _idx == 0 else lora_module.lora_name + '.' + 'lora_down'
+            if check_need_to_regularize(module, module_name, regularize_fc_layers, names_to_reg):
+                real_modules_list.append(module)
+    return real_modules_list
+
+def calc_group_reg_loss_lora_pre_calculated(
+        modules_list: List[torch.nn.Module],
+        num_groups: int,
+        reg_type: str,
+        min_num_filters: int = 4,
+):
+    """
+    Calculate the the group regularization loss.
+    First argument should be a list of precalculated modules.
+    """
+    total_reg_value = 0
+    for module in modules_list:
+        c_out = module.weight.shape[0]
+        w = module.weight.reshape(c_out, -1)
+
+        actual_num_groups = min(num_groups, c_out // min_num_filters)
+        assert c_out % actual_num_groups == 0, f'c_out={c_out} not divisible by {actual_num_groups} groups, ' \
+                                                    f'for layer index {module}'
+        group_size = c_out // actual_num_groups  # Number of filters in each group 
+
+        assert group_size > 0, f'Bad group size for {module}. c_out = {c_out}, num_groups = {num_groups}'
+        if reg_type == 'intra':
+            if group_size == 1:
+                # corner case. Same as forcing all c_out filters to be ortho
+                total_reg_value += calc_dist(w.unsqueeze(0))
+            else:
+                total_reg_value += intra_reg_loss(w, group_size, actual_num_groups)
+        elif reg_type == 'inter':
+            total_reg_value += inter_reg_loss(w, group_size, actual_num_groups)
+        else:
+            raise Exception(f'Unsupported mode {reg_type}')
+    
+    return total_reg_value
+    
+    
+
 def calc_group_reg_loss_lora(
         modules_list: List[LoRAModule],
         num_groups: int,
@@ -103,8 +152,8 @@ def calc_group_reg_loss_lora(
     total_reg_value = 0
     for lora_module in modules_list:
         modules = [lora_module.lora_up, lora_module.lora_down]
-        for module in modules:
-            module_name = module.lora_name + '.' + module.name
+        for _idx, module in enumerate(modules):
+            module_name = lora_module.lora_name + '.' + 'lora_up' if _idx == 0 else lora_module.lora_name + '.' + 'lora_down'
             # Make sure this is a layer and that we can optimize it
             if check_need_to_regularize(module, module_name, regularize_fc_layers, names_to_reg):
                 c_out = module.weight.shape[0]

@@ -33,10 +33,10 @@ from library.custom_train_functions import (
     prepare_scheduler_for_custom_training,
     scale_v_prediction_loss_like_noise_prediction,
     add_v_prediction_like_loss,
-    apply_gor_loss
+    apply_gor_loss_precalculated
 )
 from library.group_orthogonalization_normalization import (
-    check_need_to_regularize
+    precalculate_modules_to_check
 )
 
 
@@ -721,6 +721,13 @@ class NetworkTrainer:
             if os.path.exists(old_ckpt_file):
                 accelerator.print(f"removing old checkpoint: {old_ckpt_file}")
                 os.remove(old_ckpt_file)
+                
+                
+        if args.gor_regularization:
+            modules_to_regularize = precalculate_modules_to_check(network.unet_loras, args.gor_name_to_regularize, args.gor_regularize_fc_layers)
+            accelerator.print(f"modules to regularize: {len(modules_to_regularize)}")
+        else:
+            modules_to_regularize = None
         # print([k for k,v in unet.named_modules() if check_need_to_regularize(v, k, True, ["'up_blocks.*_lora\.up'"])])
         # training loop
         for epoch in range(num_train_epochs):
@@ -796,9 +803,9 @@ class NetworkTrainer:
                         loss = scale_v_prediction_loss_like_noise_prediction(loss, timesteps, noise_scheduler)
                     if args.v_pred_like_loss:
                         loss = add_v_prediction_like_loss(loss, timesteps, noise_scheduler, args.v_pred_like_loss)
+                    # to use this, use --gor_name_to_regularize="lora_up" --gor_regularization=True --gor_regularization_type="inter"
                     if args.gor_regularization: # required args : gor_num_groups : int, gor_regularization_type: str, gor_name_to_regularize: str, gor_regularize_fc_layers: bool, gor_ortho_decay: float
-                        loss = apply_gor_loss(loss, network.unet_loras, args.gor_num_groups, args.gor_regularization_type, args.gor_name_to_regularize,
-                            args.gor_regularize_fc_layers, args.gor_ortho_decay)
+                        loss = apply_gor_loss_precalculated(loss, modules_to_regularize, args.gor_num_groups, args.gor_regularization_type, args.gor_ortho_decay)
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
 
                     accelerator.backward(loss)

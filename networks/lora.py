@@ -829,6 +829,7 @@ class LoRANetwork(torch.nn.Module):
             skipped = []
             for name, module in root_module.named_modules():
                 if module.__class__.__name__ in target_replace_modules:
+                    print(f'module.__class__.__name__ : {module.__class__.__name__}')
                     for child_name, child_module in module.named_modules():
                         is_linear = child_module.__class__.__name__ == "Linear"
                         is_conv2d = child_module.__class__.__name__ == "Conv2d"
@@ -913,6 +914,7 @@ class LoRANetwork(torch.nn.Module):
 
         # extend U-Net target modules if conv2d 3x3 is enabled, or load from weights
         target_modules = LoRANetwork.UNET_TARGET_REPLACE_MODULE
+        print(f'unet target_modules : {target_modules}')
         if modules_dim is not None or self.conv_lora_dim is not None or conv_block_dims is not None:
             target_modules += LoRANetwork.UNET_TARGET_REPLACE_MODULE_CONV2D_3X3
 

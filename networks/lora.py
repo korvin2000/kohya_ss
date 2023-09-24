@@ -15,14 +15,15 @@ import re
 
 RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers|attentions)_(\d+)_")
 
-#BLOCKS = ["text_model",
-#          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1",
-#          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1",
-#          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1",
-#          "unet_mid_block_attentions_0",
-#          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
-#          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
-#          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
+BLOCKS = ["text_model",
+          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1",
+          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1",
+          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1",
+          "unet_mid_block_attentions_0",
+          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
+          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
+          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
+"""
 BLOCKS = ["text_model",
           "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1","unet_down_blocks_0_resnets",
           "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1","unet_down_blocks_1_resnets",
@@ -33,7 +34,7 @@ BLOCKS = ["text_model",
           "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2","unet_up_blocks_1_resnets",
           "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2","unet_up_blocks_2_resnets",
           "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2","unet_up_blocks_3_resnets",]
-
+"""
 
 #-------------------------------------------#
 # block index                               #
@@ -762,9 +763,9 @@ def create_network_from_weights(multiplier, file, block_wise, vae, text_encoder,
 
 class LoRANetwork(torch.nn.Module):
     NUM_OF_BLOCKS = 12  # フルモデル相当でのup,downの層の数
-    #UNET_TARGET_REPLACE_MODULE = ["Transformer2DModel"]
+    UNET_TARGET_REPLACE_MODULE = ["Transformer2DModel"]
     #UNET_TARGET_REPLACE_MODULE_CONV2D_3X3 = ["ResnetBlock2D", "Downsample2D", "Upsample2D"]
-    UNET_TARGET_REPLACE_MODULE = ["Transformer2DModel", "ResnetBlock2D", "Upsample2D"]
+    #UNET_TARGET_REPLACE_MODULE = ["Transformer2DModel", "ResnetBlock2D", "Upsample2D"]
     TEXT_ENCODER_TARGET_REPLACE_MODULE = ["CLIPAttention", "CLIPMLP"]
     LORA_PREFIX_UNET = "lora_unet"
     LORA_PREFIX_TEXT_ENCODER = "lora_te"
@@ -841,17 +842,6 @@ class LoRANetwork(torch.nn.Module):
             skipped = []
             for name, module in root_module.named_modules():
                 if module.__class__.__name__ in target_replace_modules:
-                    if 'Resnet' in module.__class__.__name__:
-                        #print(f'lora check : {module.__class__.__name__}')
-                        for child_name, child_module in module.named_modules():
-                            is_linear = child_module.__class__.__name__ == "Linear"
-                            is_conv2d = child_module.__class__.__name__ == "Conv2d"
-                            is_conv2d_1x1 = is_conv2d and child_module.kernel_size == (1, 1)
-                            #print(f'child_name : {child_module.__class__.__name__}')
-                            if is_linear or is_conv2d:
-                                lora_name = prefix + "." + name + "." + child_name
-                                lora_name = lora_name.replace(".", "_")
-                                #print(f'lora_name : {lora_name}')
 
                     for child_name, child_module in module.named_modules():
                         is_linear = child_module.__class__.__name__ == "Linear"
@@ -899,18 +889,16 @@ class LoRANetwork(torch.nn.Module):
                             else :
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
-                                        if 'time' not in lora_name :
-                                            print(f'lora_name : {lora_name}')
-                                            lora = module_class(lora_name,
-                                                                child_module,
-                                                                self.multiplier,
-                                                                dim,
-                                                                alpha,
-                                                                dropout=dropout,
-                                                                rank_dropout=rank_dropout,
-                                                                module_dropout=module_dropout,)
+                                        lora = module_class(lora_name,
+                                                            child_module,
+                                                            self.multiplier,
+                                                            dim,
+                                                            alpha,
+                                                            dropout=dropout,
+                                                            rank_dropout=rank_dropout,
+                                                            module_dropout=module_dropout,)
 
-                                            loras.append(lora)
+                                        loras.append(lora)
             return loras, skipped
 
         text_encoders = text_encoder if type(text_encoder) == list else [text_encoder]

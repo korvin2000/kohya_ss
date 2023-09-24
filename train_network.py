@@ -341,7 +341,6 @@ class NetworkTrainer:
         except TypeError:
             accelerator.print("Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)")
             trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr)
-        print(f'len of trainable_params: {len(trainable_params)}')
         all_params = []
         for trainable_param in trainable_params:
             lr = trainable_param["lr"]
@@ -349,7 +348,6 @@ class NetworkTrainer:
             for param in params:
                 param_dict = {"lr": lr, "params": param}
                 all_params.append(param_dict)
-        print(f'len of all_params : {len(all_params)}')
         optimizer_name, optimizer_args, optimizer = train_util.get_optimizer(args, all_params)
 
         # dataloaderを準備する
@@ -798,13 +796,10 @@ class NetworkTrainer:
                         target = noise_scheduler.get_velocity(latents, noise, timesteps)
                     else:
                         target = noise
-
                     loss = torch.nn.functional.mse_loss(noise_pred.float(), target.float(), reduction="none")
                     loss = loss.mean([1, 2, 3])
-
                     loss_weights = batch["loss_weights"]  # 各sampleごとのweight
                     loss = loss * loss_weights
-
                     if args.min_snr_gamma:
                         loss = apply_snr_weight(loss, timesteps, noise_scheduler, args.min_snr_gamma)
                     if args.scale_v_pred_loss_like_noise_pred:
@@ -1126,6 +1121,5 @@ if __name__ == "__main__":
     parser.add_argument("--algorithm_test", action = 'store_true')
     args = parser.parse_args()
     args = train_util.read_config_from_file(args, parser)
-
     trainer = NetworkTrainer()
     trainer.train(args)

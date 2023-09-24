@@ -1544,7 +1544,7 @@ class UNet2DConditionModel(nn.Module):
             sample += mid_block_additional_residual
 
         # 5. up
-        print(f'right before start of upblock, len of down_block_res_samples (12) : {len(down_block_res_samples)}')
+        #print(f'right before start of upblock, len of down_block_res_samples (12) : {len(down_block_res_samples)}')
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
             res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
@@ -1554,14 +1554,12 @@ class UNet2DConditionModel(nn.Module):
             if not is_final_block and forward_upsample_size:
                 upsample_size = down_block_res_samples[-1].shape[2:]
             if upsample_block.has_cross_attention:
-                sample = upsample_block(
-                    hidden_states=sample,
-                    temb=emb,
-                    res_hidden_states_tuple=res_samples,
-                    encoder_hidden_states=encoder_hidden_states,
-                    upsample_size=upsample_size,)
+                sample = upsample_block(hidden_states=sample,temb=emb,
+                                        res_hidden_states_tuple=res_samples,
+                                        encoder_hidden_states=encoder_hidden_states, # text information
+                                        upsample_size=upsample_size,)                #
             else:
-                print(f'in UpBlock2D, len of res_samples: {len(res_samples)}')
+                #print(f'in UpBlock2D, len of res_samples: {len(res_samples)}')
                 sample = upsample_block(hidden_states=sample, temb=emb,
                                         res_hidden_states_tuple=res_samples,
                                         upsample_size=upsample_size)

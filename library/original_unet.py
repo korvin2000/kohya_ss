@@ -1528,11 +1528,11 @@ class UNet2DConditionModel(nn.Module):
                 sample, res_samples = downsample_block(
                     hidden_states=sample,
                     temb=emb,
-                    encoder_hidden_states=encoder_hidden_states,
-                )
+                    encoder_hidden_states=encoder_hidden_states,)
             else:
-                sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
 
+                sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
+                print(f'at DownBlock2D, len of res_samples is {len(res_samples)}')
             down_block_res_samples += res_samples
 
         # skip connectionにControlNetの出力を追加する

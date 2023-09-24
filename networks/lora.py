@@ -899,14 +899,15 @@ class LoRANetwork(torch.nn.Module):
                             else :
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
-                                        lora = module_class(lora_name,
-                                                            child_module,
-                                                            self.multiplier,
-                                                            dim,
-                                                            alpha,
-                                                            dropout=dropout,
-                                                            rank_dropout=rank_dropout,
-                                                            module_dropout=module_dropout,)
+                                        if 'time' not in lora :
+                                            lora = module_class(lora_name,
+                                                                child_module,
+                                                                self.multiplier,
+                                                                dim,
+                                                                alpha,
+                                                                dropout=dropout,
+                                                                rank_dropout=rank_dropout,
+                                                                module_dropout=module_dropout,)
 
                                         loras.append(lora)
             return loras, skipped
@@ -924,7 +925,6 @@ class LoRANetwork(torch.nn.Module):
             else:
                 index = None
                 print(f"create LoRA for Text Encoder:")
-
             text_encoder_loras, skipped = create_modules(False, index, text_encoder, LoRANetwork.TEXT_ENCODER_TARGET_REPLACE_MODULE)
             self.text_encoder_loras.extend(text_encoder_loras)
             skipped_te += skipped

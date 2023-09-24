@@ -15,14 +15,17 @@ import re
 
 RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers|attentions)_(\d+)_")
 
+#BLOCKS = ["text_model",
+#          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1",
+#          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1",
+#          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1",
+#          "unet_mid_block_attentions_0",
+#          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
+#          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
+#          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
 BLOCKS = ["text_model",
-          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1",
-          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1",
-          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1",
-          "unet_mid_block_attentions_0",
-          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2",
-          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
-          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
+          "unet", ]
+
 #-------------------------------------------#
 # block index                               #
 # 1,2,(3) / 4,5,(6) / 7,8,(9) / (10,11)     #
@@ -885,10 +888,10 @@ class LoRANetwork(torch.nn.Module):
                                                     module_dropout=module_dropout,)
                                 loras.append(lora)
                             else :
-                                if 'res' in lora_name :
-                                    print(f'block_wise lora: {lora_name}')
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
+                                        if 'res' in lora_name:
+                                            print(f'block_wise lora: {lora_name}')
                                         lora = module_class(lora_name,
                                                             child_module,
                                                             self.multiplier,

@@ -870,7 +870,6 @@ class LoRANetwork(torch.nn.Module):
                                 elif self.conv_lora_dim is not None:
                                     dim = self.conv_lora_dim
                                     alpha = self.conv_alpha
-                            print(f'lora_name : {lora_name}')
                             if dim is None or dim == 0:
                                 if is_linear or is_conv2d_1x1 or (self.conv_lora_dim is not None or conv_block_dims is not None):
                                     skipped.append(lora_name)
@@ -886,6 +885,8 @@ class LoRANetwork(torch.nn.Module):
                                                     module_dropout=module_dropout,)
                                 loras.append(lora)
                             else :
+                                if 'res' in lora_name :
+                                    print(f'block_wise lora: {lora_name}')
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
                                         lora = module_class(lora_name,

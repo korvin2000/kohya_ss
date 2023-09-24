@@ -269,7 +269,7 @@ class NetworkTrainer:
         if is_main_process:
             for name, module in unet.named_modules():
                 print(f'{name}: {module.__class__.__name__}')
-        """
+
         # prepare network
         net_kwargs = {}
         if args.network_args is not None:
@@ -1011,7 +1011,7 @@ class NetworkTrainer:
             with open(loss_save_dir, 'wb') as fw:
                 pickle.dump(loss_dict, fw)
 
-    """
+    
 
 def setup_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()

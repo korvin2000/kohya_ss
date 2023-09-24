@@ -166,6 +166,7 @@ def train(args):
     # dataloaderを準備する
     # DataLoaderのプロセス数：0はメインプロセスになる
     n_workers = min(args.max_data_loader_n_workers, os.cpu_count() - 1)  # cpu_count-1 ただし最大で指定された数まで
+    # torch.utils.data.DataLoader
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset_group,
         batch_size=1,

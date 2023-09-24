@@ -909,7 +909,7 @@ class LoRANetwork(torch.nn.Module):
                                                                 rank_dropout=rank_dropout,
                                                                 module_dropout=module_dropout,)
 
-                                        loras.append(lora)
+                                            loras.append(lora)
             return loras, skipped
 
         text_encoders = text_encoder if type(text_encoder) == list else [text_encoder]

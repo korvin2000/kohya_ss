@@ -840,6 +840,7 @@ class NetworkTrainer:
                         if args.algorithm_test :
                             for key in standard_dict.keys() :
                                 spot_name = key.split('lora_unet_mid_block_attentions_0_')[-1]
+                                spot_name = spot_name.replace('.','_')
                                 file_name = os.path.join(f'layerwise_collections',f'{spot_name}.txt')
                                 with open(file_name,'r') as f :
                                     content = f.readlines()

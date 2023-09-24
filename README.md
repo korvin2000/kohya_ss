@@ -1,3 +1,52 @@
+# LoRA Custom Multiplier (Ultra-LoRA)
+
+All of us train our LoRAs with a `multiplier=1`, but when it comes to inference, we often employ diverse multipliers. Thanks to insights from LECO, we've learned that negative multipliers can effectively eliminate concepts or create a slider-like LoRA. This naturally leads us to ponder: Can we actually train our LoRAs using different multipliers, and how might that be advantageous?
+
+## Why Custom Multipliers Matter
+
+Imagine you're aiming for the perfect photorealistic LoRA. You carefully select high-resolution photos and train your model with captions to achieve image perfection. However, the outcome heavily relies on the quality of your images and captions. Poor captions can result in subpar images. But why does this happen? The standard training process lacks guidance on your desired output.
+
+This is where custom-multipliers steps in. Instead of leaving your LoRA's fate to chance, you can actively guide it. Start by collecting a diverse set of images and perform batch image-to-image transformations on them using Stable-Diffusion. Make these images intentionally worse by adding bad positive prompts and applying light denoising. The result should be images that are ugly, lacking texture, details, and coherence. These distorted images are placed in a new folder. Create two other additional folders, where you blur the original photos and another where you add JPEF artifacts to them.
+
+Your folder structure will look like this:
+
+```
+images\4_high-quality [1]
+images\1_sd-deformed [-1.3]
+images\1_blur [-0.8]
+images\1_jpeg-artifacts [-0.4]
+```
+
+The number in brackets represents the `weight` used during training and inference. Each folder has the same amount of images. Also they share the captions! That is the main insight. You caption your original high-quality dataset, and then you just copy these captions to the distorted images folders. By adding captions from your high-quality images to all the distorted ones, you teach Stable-Diffusion to understand that negative multipliers should create monstrosities while positive multipliers should produce aesthetically pleasing results. In essence, you're creating a slider where changing the multiplier transforms the output from beautiful to ugly and back.
+
+But the concept doesn't stop there. You can apply this technique to various scenarios, such as training with positive multipliers for artwork and negative multipliers for realistic images or deformed artwork. The possibilities are endless.
+
+Another possibility is to train a face. Use inpainting to modify the person face while not making it deliberately too ungly or unatural. This will teach SD that we do not care at all about the person clothes, background etc. we only care about the person face.
+
+## How to Use the LoRA-Multiplier Training
+
+To harness the power of LoRA-multiplier training, follow these steps:
+
+1. Navigate to your Kohya-ss folder and execute the following commands:
+
+```bash
+git remote add tfernd https://github.com/tfernd/kohya_ss-multiplier.git
+git fetch tfernd
+git checkout tfernd/master
+```
+
+This sets up this fork as a remote repository, allowing you to access the latest training features before they're merged with the original repository.
+
+2. If you ever want to return to your standard repository, don't worry. You can revert to it with these commands:
+
+```bash
+git remote remove tfernd
+git checkout main
+git pull origin main
+```
+
+---
+
 # Kohya's GUI
 
 This repository mostly provides a Windows-focused Gradio GUI for [Kohya's Stable Diffusion trainers](https://github.com/kohya-ss/sd-scripts)... but support for Linux OS is also provided through community contributions. Macos is not great at the moment.
@@ -44,7 +93,6 @@ The GUI allows you to set the training parameters and generate and run the requi
     - [FileNotFoundError](#filenotfounderror)
   - [Change History](#change-history)
 
-
 ## Tutorials
 
 [How to Create a LoRA Part 1: Dataset Preparation](https://www.youtube.com/watch?v=N4_-fB62Hwk):
@@ -77,38 +125,38 @@ The GUI allows you to set the training parameters and generate and run the requi
 
 ### About SDXL training
 
-The feature of SDXL training is now available in sdxl branch as an experimental feature. 
+The feature of SDXL training is now available in sdxl branch as an experimental feature.
 
-Sep 3, 2023: The feature will be merged into the main branch soon. Following are the changes from the previous version. 
+Sep 3, 2023: The feature will be merged into the main branch soon. Following are the changes from the previous version.
 
 - ControlNet-LLLite is added. See [documentation](./docs/train_lllite_README.md) for details.
-- JPEG XL is supported. [#786](https://github.com/kohya-ss/sd-scripts/pull/786) 
+- JPEG XL is supported. [#786](https://github.com/kohya-ss/sd-scripts/pull/786)
 - Peak memory usage is reduced. [#791](https://github.com/kohya-ss/sd-scripts/pull/791)
 - Input perturbation noise is added. See [#798](https://github.com/kohya-ss/sd-scripts/pull/798) for details.
 - Dataset subset now has `caption_prefix` and `caption_suffix` options. The strings are added to the beginning and the end of the captions before shuffling. You can specify the options in `.toml`.
 - Other minor changes.
-- Thanks for contributions from Isotr0py, vvern999, lansing  and others!
+- Thanks for contributions from Isotr0py, vvern999, lansing and others!
 
-Aug 13, 2023: 
+Aug 13, 2023:
 
 - LoRA-FA is added experimentally. Specify `--network_module networks.lora_fa` option instead of `--network_module networks.lora`. The trained model can be used as a normal LoRA model.
 
-Aug 12, 2023: 
+Aug 12, 2023:
 
 - The default value of noise offset when omitted has been changed to 0 from 0.0357.
 - The different learning rates for each U-Net block are now supported. Specify with `--block_lr` option. Specify 23 values separated by commas like `--block_lr 1e-3,1e-3 ... 1e-3`.
   - 23 values correspond to `0: time/label embed, 1-9: input blocks 0-8, 10-12: mid blocks 0-2, 13-21: output blocks 0-8, 22: out`.
 
-Aug 6, 2023: 
+Aug 6, 2023:
 
 - [SAI Model Spec](https://github.com/Stability-AI/ModelSpec) metadata is now supported partially. `hash_sha256` is not supported yet.
-  - The main items are set automatically. 
+  - The main items are set automatically.
   - You can set title, author, description, license and tags with `--metadata_xxx` options in each training script.
   - Merging scripts also support minimum SAI Model Spec metadata. See the help message for the usage.
   - Metadata editor will be available soon.
-- SDXL LoRA has `sdxl_base_v1-0` now  for `ss_base_model_version` metadata item, instead of `v0-9`.
+- SDXL LoRA has `sdxl_base_v1-0` now for `ss_base_model_version` metadata item, instead of `v0-9`.
 
-Aug 4, 2023: 
+Aug 4, 2023:
 
 - `bitsandbytes` is now optional. Please install it if you want to use it. The insructions are in the later section.
 - `albumentations` is not required anymore.
@@ -121,18 +169,20 @@ Aug 4, 2023:
 
 Summary of the feature:
 
-- `tools/cache_latents.py` is added. This script can be used to cache the latents to disk in advance. 
+- `tools/cache_latents.py` is added. This script can be used to cache the latents to disk in advance.
+
   - The options are almost the same as `sdxl_train.py'. See the help message for the usage.
   - Please launch the script as follows:
     `accelerate launch  --num_cpu_threads_per_process 1 tools/cache_latents.py ...`
   - This script should work with multi-GPU, but it is not tested in my environment.
 
-- `tools/cache_text_encoder_outputs.py` is added. This script can be used to cache the text encoder outputs to disk in advance. 
+- `tools/cache_text_encoder_outputs.py` is added. This script can be used to cache the text encoder outputs to disk in advance.
+
   - The options are almost the same as `cache_latents.py' and `sdxl_train.py'. See the help message for the usage.
 
 - `sdxl_train.py` is a script for SDXL fine-tuning. The usage is almost the same as `fine_tune.py`, but it also supports DreamBooth dataset.
   - `--full_bf16` option is added. Thanks to KohakuBlueleaf!
-    - This option enables the full bfloat16 training (includes gradients). This option is useful to reduce the GPU memory usage. 
+    - This option enables the full bfloat16 training (includes gradients). This option is useful to reduce the GPU memory usage.
     - However, bitsandbytes==0.35 doesn't seem to support this. Please use a newer version of bitsandbytes or another optimizer.
     - I cannot find bitsandbytes>0.35.0 that works correctly on Windows.
     - In addition, the full bfloat16 training might be unstable. Please use it at your own risk.
@@ -153,16 +203,15 @@ Summary of the feature:
     1. Training with captions. All captions must include the token string. The token string is replaced with multiple tokens.
     2. Use `--use_object_template` or `--use_style_template` option. The captions are generated from the template. The existing captions are ignored.
   - See below for the format of the embeddings.
-  
 - `sdxl_gen_img.py` is added. This script can be used to generate images with SDXL, including LoRA. See the help message for the usage.
   - Textual Inversion is supported, but the name for the embeds in the caption becomes alphabet only. For example, `neg_hand_v1.safetensors` can be activated with `neghandv`.
 
-`requirements.txt` is updated to support SDXL training. 
+`requirements.txt` is updated to support SDXL training.
 
 #### Tips for SDXL training
 
 - The default resolution of SDXL is 1024x1024.
-- The fine-tuning can be done with 24GB GPU memory with the batch size of 1. For 24GB GPU, the following options are recommended __for the fine-tuning with 24GB GPU memory__:
+- The fine-tuning can be done with 24GB GPU memory with the batch size of 1. For 24GB GPU, the following options are recommended **for the fine-tuning with 24GB GPU memory**:
   - Train U-Net only.
   - Use gradient checkpointing.
   - Use `--cache_text_encoder_outputs` option and caching latents.
@@ -178,6 +227,7 @@ Summary of the feature:
 - `--bucket_reso_steps` can be set to 32 instead of the default value 64. Smaller values than 32 will not work for SDXL training.
 
 Example of the optimizer settings for Adafactor with the fixed learning rate:
+
 ```toml
 optimizer_type = "adafactor"
 optimizer_args = [ "scale_parameter=False", "relative_step=False", "warmup_init=False" ]
@@ -194,10 +244,9 @@ This Colab notebook was not created or maintained by me; however, it appears to 
 
 I would like to express my gratitude to camendutu for their valuable contribution. If you encounter any issues with the Colab notebook, please report them on their repository.
 
-| Colab                                                                                                                                                                          | Info                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| Colab                                                                                                                                                                          | Info               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camenduru/kohya_ss-colab/blob/main/kohya_ss_colab.ipynb) | kohya_ss_gui_colab |
-
 
 ## Installation
 
@@ -208,6 +257,7 @@ I would like to express my gratitude to camendutu for their valuable contributio
 To install the necessary dependencies on a Windows system, follow these steps:
 
 1. Install [Python 3.10](https://www.python.org/ftp/python/3.10.9/python-3.10.9-amd64.exe).
+
    - During the installation process, ensure that you select the option to add Python to the 'PATH' environment variable.
 
 2. Install [Git](https://git-scm.com/download/win).
@@ -221,16 +271,19 @@ To set up the project, follow these steps:
 1. Open a terminal and navigate to the desired installation directory.
 
 2. Clone the repository by running the following command:
+
    ```
    git clone https://github.com/bmaltais/kohya_ss.git
    ```
 
 3. Change into the `kohya_ss` directory:
+
    ```
    cd kohya_ss
    ```
 
 4. Run the setup script by executing the following command:
+
    ```
    .\setup.bat
    ```
@@ -254,6 +307,7 @@ Please note that the CUDNN 8.6 DLLs needed for this process cannot be hosted on 
 To install the necessary dependencies on a Linux system, ensure that you fulfill the following requirements:
 
 - Ensure that `venv` support is pre-installed. You can install it on Ubuntu 22.04 using the command:
+
   ```
   apt install python3.10-venv
   ```
@@ -274,21 +328,25 @@ To set up the project on Linux or macOS, perform the following steps:
 1. Open a terminal and navigate to the desired installation directory.
 
 2. Clone the repository by running the following command:
+
    ```
    git clone https://github.com/bmaltais/kohya_ss.git
    ```
 
 3. Change into the `kohya_ss` directory:
+
    ```
    cd kohya_ss
    ```
 
 4. If you encounter permission issues, make the `setup.sh` script executable by running the following command:
+
    ```
    chmod +x ./setup.sh
    ```
 
 5. Run the setup script by executing the following command:
+
    ```
    ./setup.sh
    ```
@@ -304,6 +362,7 @@ For macOS and other non-Linux systems, the installation process will attempt to 
 If you choose to use the interactive mode, the default values for the accelerate configuration screen will be "This machine," "None," and "No" for the remaining questions. These default answers are the same as the Windows installation.
 
 ### Runpod
+
 #### Manual installation
 
 To install the necessary components for Runpod and run kohya_ss, follow these steps:
@@ -313,18 +372,21 @@ To install the necessary components for Runpod and run kohya_ss, follow these st
 2. SSH into the Runpod.
 
 3. Clone the repository by running the following command:
+
    ```
    cd /workspace
    git clone https://github.com/bmaltais/kohya_ss.git
    ```
 
 4. Run the setup script:
+
    ```
    cd kohya_ss
    ./setup-runpod.sh
    ```
 
 5. Run the gui with:
+
    ```
    ./gui.sh --share --headless
    ```
@@ -347,8 +409,8 @@ To run from a pre-built Runpod template you can:
 
 3. Once deployed connect to the Runpod on HTTP 3010 to connect to kohya_ss GUI. You can also connect to auto1111 on HTTP 3000.
 
-
 ### Docker
+
 #### Local docker build
 
 If you prefer to use Docker, follow the instructions below:
@@ -379,8 +441,8 @@ If you prefer to use Docker, follow the instructions below:
 
 You may want to use the following Dockerfile repos to build the images:
 
-   - Standalone Kohya_ss template: https://github.com/ashleykleynhans/kohya-docker
-   - Auto1111 + Kohya_ss GUI template: https://github.com/ashleykleynhans/stable-diffusion-docker
+- Standalone Kohya_ss template: https://github.com/ashleykleynhans/kohya-docker
+- Auto1111 + Kohya_ss GUI template: https://github.com/ashleykleynhans/stable-diffusion-docker
 
 ## Upgrading
 
@@ -391,6 +453,7 @@ To upgrade your installation to a new version, follow the instructions below.
 If a new release becomes available, you can upgrade your repository by running the following commands from the root directory of the project:
 
 1. Pull the latest changes from the repository:
+
    ```powershell
    git pull
    ```
@@ -406,9 +469,10 @@ To upgrade your installation on Linux or macOS, follow these steps:
 
 1. Open a terminal and navigate to the root
 
- directory of the project.
+directory of the project.
 
 2. Pull the latest changes from the repository:
+
    ```bash
    git pull
    ```
@@ -524,6 +588,7 @@ If you come across a `FileNotFoundError`, it is likely due to an installation is
 1. Open a new PowerShell terminal and ensure that no virtual environment is active.
 
 2. Run the following commands to create a backup file of your locally installed pip packages and then uninstall them:
+
    ```powershell
    pip freeze > uninstall.txt
    pip uninstall -r uninstall.txt
@@ -538,10 +603,10 @@ If you come across a `FileNotFoundError`, it is likely due to an installation is
   
 * 2023/08/05 (v21.8.9)
   - Update sd-script to caode as of Sept 3 2023
-    * ControlNet-LLLite is added. See documentation for details.
-    * JPEG XL is supported. #786
-    * Peak memory usage is reduced. #791
-    * Input perturbation noise is added. See #798 for details.
-    * Dataset subset now has caption_prefix and caption_suffix options. The strings are added to the beginning and the end of the captions before shuffling. You can specify the options in .toml.
-    * Other minor changes.
+    - ControlNet-LLLite is added. See documentation for details.
+    - JPEG XL is supported. #786
+    - Peak memory usage is reduced. #791
+    - Input perturbation noise is added. See #798 for details.
+    - Dataset subset now has caption_prefix and caption_suffix options. The strings are added to the beginning and the end of the captions before shuffling. You can specify the options in .toml.
+    - Other minor changes.
   - Added support for Chinese locallisation

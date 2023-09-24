@@ -3,6 +3,7 @@ from dataclasses import (
   asdict,
   dataclass,
 )
+import re
 import functools
 import random
 from textwrap import dedent, indent
@@ -50,6 +51,7 @@ def add_config_arguments(parser: argparse.ArgumentParser):
 class BaseSubsetParams:
   image_dir: Optional[str] = None
   num_repeats: int = 1
+  multiplier: float = 1
   shuffle_caption: bool = False
   keep_tokens: int = 0
   color_aug: bool = False
@@ -156,6 +158,7 @@ class ConfigSanitizer:
     "face_crop_aug_range": functools.partial(__validate_and_convert_twodim.__func__, float),
     "flip_aug": bool,
     "num_repeats": int,
+    "multiplier": float,
     "random_crop": bool,
     "shuffle_caption": bool,
     "keep_tokens": int,
@@ -458,6 +461,7 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
           image_dir: "{subset.image_dir}"
           image_count: {subset.img_count}
           num_repeats: {subset.num_repeats}
+          multiplier: {subset.multiplier}
           shuffle_caption: {subset.shuffle_caption}
           keep_tokens: {subset.keep_tokens}
           caption_dropout_rate: {subset.caption_dropout_rate}
@@ -498,15 +502,20 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
 
 
 def generate_dreambooth_subsets_config_by_subdirs(train_data_dir: Optional[str] = None, reg_data_dir: Optional[str] = None):
-  def extract_dreambooth_params(name: str) -> Tuple[int, str]:
-    tokens = name.split('_')
-    try:
-      n_repeats = int(tokens[0])
-    except ValueError as e:
+  def extract_dreambooth_params(name: str) -> Tuple[int, str, float]:
+    # {number}_captions [multiplier]?
+    pattern = r'(\d+)_([^\[\]]+)(?:\s*\[([+-]?\d+\.?\d*)\])?'
+    match = re.match(pattern, name)
+
+    if match is None:
       print(f"ignore directory without repeats / 繰り返し回数のないディレクトリを無視します: {name}")
-      return 0, ""
-    caption_by_folder = '_'.join(tokens[1:])
-    return n_repeats, caption_by_folder
+      return 0, "", 1
+    
+    n_repeats = int(match.group(1))
+    caption_by_folder = match.group(2)
+    multiplier = float(match.group(3) or 1)
+
+    return n_repeats, caption_by_folder, multiplier
 
   def generate(base_dir: Optional[str], is_reg: bool):
     if base_dir is None:
@@ -521,11 +530,11 @@ def generate_dreambooth_subsets_config_by_subdirs(train_data_dir: Optional[str] 
       if not subdir.is_dir():
         continue
 
-      num_repeats, class_tokens = extract_dreambooth_params(subdir.name)
+      num_repeats, class_tokens, multiplier = extract_dreambooth_params(subdir.name)
       if num_repeats < 1:
         continue
 
-      subset_config = {"image_dir": str(subdir), "num_repeats": num_repeats, "is_reg": is_reg, "class_tokens": class_tokens}
+      subset_config = {"image_dir": str(subdir), "num_repeats": num_repeats, "is_reg": is_reg, "class_tokens": class_tokens, "multiplier": multiplier}
       subsets_config.append(subset_config)
 
     return subsets_config

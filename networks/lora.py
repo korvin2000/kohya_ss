@@ -900,6 +900,7 @@ class LoRANetwork(torch.nn.Module):
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
                                         if 'time' not in lora_name :
+                                            print(f'lora_name : {lora_name}')
                                             lora = module_class(lora_name,
                                                                 child_module,
                                                                 self.multiplier,

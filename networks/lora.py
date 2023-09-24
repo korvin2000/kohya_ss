@@ -829,6 +829,14 @@ class LoRANetwork(torch.nn.Module):
             skipped = []
             for name, module in root_module.named_modules():
                 if module.__class__.__name__ in target_replace_modules:
+                    if 'Resnet' in module.__class__.__name__:
+                        print(f'lora check : {module.__class__.__name__}')
+                        for child_name, child_module in module.named_modules():
+                            is_linear = child_module.__class__.__name__ == "Linear"
+                            is_conv2d = child_module.__class__.__name__ == "Conv2d"
+                            is_conv2d_1x1 = is_conv2d and child_module.kernel_size == (1, 1)
+                            print(f'child_name : {child_module.__class__.__name__}')
+
                     for child_name, child_module in module.named_modules():
                         is_linear = child_module.__class__.__name__ == "Linear"
                         is_conv2d = child_module.__class__.__name__ == "Conv2d"
@@ -889,8 +897,6 @@ class LoRANetwork(torch.nn.Module):
                                                             dropout=dropout,
                                                             rank_dropout=rank_dropout,
                                                             module_dropout=module_dropout,)
-                                        if 'Resnet' in module.__class__.__name__:
-                                            print(f'lora name : {lora_name}')
 
                                         loras.append(lora)
             return loras, skipped

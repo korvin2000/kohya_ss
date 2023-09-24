@@ -1,0 +1,16 @@
+lora_unet_up_blocks_3_attentions_1_proj_in.lora_down.weight : 10.079763394829627
+lora_unet_up_blocks_3_attentions_0_proj_in.lora_down.weight : 9.915385540150659
+lora_unet_up_blocks_2_attentions_2_proj_in.lora_down.weight : 9.495230329296714
+lora_unet_up_blocks_3_attentions_2_proj_in.lora_down.weight : 8.822168355344951
+lora_unet_up_blocks_2_attentions_1_proj_in.lora_down.weight : 7.8405436512374225
+lora_unet_up_blocks_2_attentions_0_proj_in.lora_down.weight : 6.831182824334522
+lora_unet_up_blocks_1_attentions_2_proj_in.lora_down.weight : 6.336467792605049
+lora_unet_down_blocks_0_attentions_1_proj_in.lora_down.weight : 5.619520711732186
+lora_unet_up_blocks_1_attentions_1_proj_in.lora_down.weight : 4.833355979350769
+lora_unet_down_blocks_0_attentions_0_proj_in.lora_down.weight : 4.2723309738395185
+lora_unet_down_blocks_1_attentions_1_proj_in.lora_down.weight : 4.222375326291878
+lora_unet_down_blocks_1_attentions_0_proj_in.lora_down.weight : 3.7013253685974896
+lora_unet_up_blocks_1_attentions_0_proj_in.lora_down.weight : 3.4464561099822886
+lora_unet_down_blocks_2_attentions_1_proj_in.lora_down.weight : 2.5197361926662123
+lora_unet_down_blocks_2_attentions_0_proj_in.lora_down.weight : 2.3703709397432853
+lora_unet_mid_block_attentions_0_proj_in.lora_down.weight : 1.0

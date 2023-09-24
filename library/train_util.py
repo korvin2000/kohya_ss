@@ -4700,8 +4700,15 @@ def sample_images_common(
                     import wandb
                 except ImportError:  # 事前に一度確認するのでここはエラー出ないはず
                     raise ImportError("No wandb / wandb がインストールされていないようです")
-
-                wandb_tracker.log({f"sample_{i}": wandb.Image(image)})
+                # log generation information to wandb
+                logging_caption_key = f"prompt : {prompt} seed: {str(seed)}"
+                # remove invalid characters from the caption for filenames
+                logging_caption_key = re.sub(r"[^a-zA-Z0-9_\-. ]+", "", logging_caption_key)
+                wandb_tracker.log(
+                    {
+                        logging_caption_key: wandb.Image(image, caption=f"negative_prompt: {negative_prompt}"),
+                    }
+                )
             except:  # wandb 無効時
                 pass
 

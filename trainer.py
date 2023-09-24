@@ -8,6 +8,8 @@ import json
 import socket
 from typing import List, Tuple
 from ast import literal_eval
+from image_util import process_path
+import csv
 
 
 def get_available_port(port: int, max_retries=100) -> int:
@@ -39,7 +41,7 @@ def validate_dataset():
   print("\n💿 Checking dataset...")
   if not project_name.strip() or any(c in project_name for c in " .()\"'\\/"):
     print("💥 Error: Please choose a valid project name.")
-    return
+    raise Exception("Invalid project name")
 
   if custom_dataset:
     try:
@@ -51,7 +53,6 @@ def validate_dataset():
       print(f"💥 Error: Your custom dataset is invalid or contains an error! Please check the original template.")
       print(e)
       raise e
-      return
     reg = [d for d in datasets if d.get("is_reg", False)]
     for r in reg:
       print("📁"+r["image_dir"].replace("/content/drive/", "") + " (Regularization)")
@@ -68,21 +69,21 @@ def validate_dataset():
   for folder in folders:
     if not os.path.exists(folder):
       print(f"💥 Error: The folder {folder.replace('/content/drive/', '')} doesn't exist.")
-      return
+      raise Exception("Empty folder")
   for folder, (img, rep) in images_repeats.items():
     if not img:
       print(f"💥 Error: Your {folder.replace('/content/drive/', '')} folder is empty.")
-      return
+      raise Exception("Empty folder")
   for f in files:
     if not f.lower().endswith(".txt") and not f.lower().endswith(supported_types):
       print(f"💥 Error: Invalid file in dataset: \"{f}\". Aborting.")
-      return
+      raise Exception("Invalid file")
 
   if not [txt for txt in files if txt.lower().endswith(".txt")]:
     caption_extension = ""
   if continue_from_lora and not (continue_from_lora.endswith(".safetensors") and os.path.exists(continue_from_lora)):
     print(f"💥 Error: Invalid path to existing Lora. Example: /content/drive/MyDrive/Loras/example.safetensors")
-    return
+    raise Exception("Invalid Lora path")
 
   pre_steps_per_epoch = sum(img*rep for (img, rep) in images_repeats.values())
   steps_per_epoch = pre_steps_per_epoch/train_batch_size
@@ -101,7 +102,7 @@ def validate_dataset():
 
   if total_steps > 10000:
     print("💥 Error: Your total steps are too high. You probably made a mistake. Aborting...")
-    return
+    raise Exception("Too many steps")
 
   if adjust_tags:
     print(f"\n📎 Weighted tags: {'ON' if weighted_captions else 'OFF'}")
@@ -198,12 +199,12 @@ def create_config():
         "weighted_captions": weighted_captions,
         "seed": training_seed,
         "max_token_length": 225,
-        "xformers": True,
+        "xformers": xformers,
         "lowram": False,
         "max_data_loader_n_workers": 8,
         "persistent_data_loader_workers": True,
-        "save_precision": "fp16",
-        "mixed_precision": "fp16",
+        "save_precision": precision_type,
+        "mixed_precision": precision_type,
         "output_dir": output_folder,
         "logging_dir": log_folder,
         "output_name": project_name,
@@ -218,8 +219,6 @@ def create_config():
       },
       "model_arguments": {
         "pretrained_model_name_or_path": model_file,
-        "v2": custom_model_is_based_on_sd2,
-        "v_parameterization": True if custom_model_is_based_on_sd2 else None,
       },
       "saving_arguments": {
         "save_model_as": "safetensors",
@@ -228,7 +227,7 @@ def create_config():
         "prior_loss_weight": 1.0,
       },
       "dataset_arguments": {
-        "cache_latents": True,
+        "cache_latents": True if not flip_aug and not color_aug and not random_crop else False,
       },
       "extra_arguments": extra_args_dict
     }
@@ -242,6 +241,8 @@ def create_config():
     print(f"\n📄 Config saved to {config_file}")
 
   if override_dataset_config_file:
+    # copy to dataset_config_file
+    shutil.copyfile(override_dataset_config_file, dataset_config_file)
     dataset_config_file = override_dataset_config_file
     print(f"⭕ Using custom dataset config file {dataset_config_file}")
   else:
@@ -264,7 +265,7 @@ def create_config():
             {
               "num_repeats": num_repeats,
               "image_dir": images_folder,
-              "class_tokens": None if caption_extension else project_name
+              "class_tokens": None if caption_extension else class_tokens
             }
           ]
         }
@@ -296,7 +297,11 @@ def main():
   # call .\venv\Scripts\activate.bat
   # set PATH=%PATH%;%~dp0venv\Lib\site-packages\torch\lib
     # windows, required user venv..
-  subprocess.check_call(["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file],
+  command_list = ["accelerate", "launch", "--config_file="+accelerate_config_file, "--num_cpu_threads_per_process=1", "train_network.py", "--dataset_config="+dataset_config_file, "--config_file="+config_file]
+  with open(os.path.join(log_folder, "accelerate_launch_commands_log.txt"), "a") as f:
+    f.write(" ".join(command_list))
+    
+  subprocess.check_call(command_list,
                         shell=True if os.name == 'nt' else False)
   # move model to output folder
 
@@ -349,6 +354,8 @@ def add_basic_arguments(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--port', type=int, default=20060, help='Port to use for accelerate (default: 20060)')
   # should we use port fallback
   parser.add_argument('--port_fallback', type=bool, default=True, help='Use port fallback (default: False)')
+  # add class_tokens
+  parser.add_argument('--class_tokens', type=str, default='girl', help='Class tokens for the project (default: "girl")')
   return []
 
 def add_sample_args(parser : argparse.ArgumentParser) -> List[str]:
@@ -395,6 +402,14 @@ def add_training_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--text_encoder_lr', type=float, default=2e-5,
                       help='Learning rate for the text encoder (default: 2e-5)')
   parser.add_argument('--lr_scheduler', type=str, default='cosine_with_restarts', help='LR scheduler for the project (default: cosine_with_restarts)')
+  #lr_scheduler_number
+  parser.add_argument('--lr_scheduler_number', type=int, default=3, help='LR scheduler number restart for the project (default: 1)')
+  #lr_warmup_ratio
+  parser.add_argument('--lr_warmup_ratio', type=float, default=0.05, help='LR warmup ratio for the project (default: 0.1)')
+  # xformers
+  parser.add_argument('--xformers', type=str, default='False', help='Xformers for the project (default: False)')
+  # precision_type
+  parser.add_argument('--precision_type', type=str, default='bf16', help='Precision type for the project (default: bf16, available: bf16, fp32, fp16)')
   return []
 
 def add_regularization_args(parser : argparse.ArgumentParser) -> List[str]:
@@ -417,9 +432,9 @@ def add_gor_args(parser: argparse.ArgumentParser)-> List[str]:
     parser.add_argument("--gor_num_groups", type=int, default=32, help="number of groups for group orthogonality regularization")
     parser.add_argument("--gor_regularization_type", type=str, default=None, help="type of group orthogonality regularization, 'inter' or 'intra'")
     parser.add_argument("--gor_name_to_regularize", type=str, default='up_blocks.*_lora\.up', help="name of the layer to regularize, e.g. 'up_blocks.*_lora\.up'")
-    parser.add_argument("--gor_regularize_fc_layers", type=bool, default=True, help="whether to regularize fully connected layers")
+    parser.add_argument("--gor_regularize_fc_layers", type=str, default="True", help="whether to regularize fully connected layers")
     parser.add_argument("--gor_ortho_decay", type=float, default=1e-6, help="decay for group orthogonality regularization")
-    parser.add_argument("--gor_regularization", type=bool, default=False, help="whether to enable group orthogonality regularization")
+    parser.add_argument("--gor_regularization", type=str, default="False", help="whether to enable group orthogonality regularization")
     return ['gor_num_groups', 'gor_regularization_type', 'gor_name_to_regularize', 'gor_regularize_fc_layers', 'gor_ortho_decay', 'gor_regularization']
 
 
@@ -434,11 +449,11 @@ def add_augmentation_args(parser : argparse.ArgumentParser) -> List[str]:
   """
   parser.add_argument('--face_crop_aug_range', type=str, default="0.0,0.0",
                       help='Face crop augmentation range for the project (default: 0.0, 0.0)')
-  parser.add_argument('--flip_aug', type=bool, default=False,
+  parser.add_argument('--flip_aug', type=str, default=False,
                       help='Flip augmentation for the project (default: False)')
-  parser.add_argument('--color_aug', type=bool, default=False,
+  parser.add_argument('--color_aug', type=str, default=False,
                       help='Color augmentation for the project (default: False)')
-  parser.add_argument('--random_crop', type=bool, default=False,
+  parser.add_argument('--random_crop', type=str, default=False,
                       help='Random crop for the project (default: False)')
   return ['face_crop_aug_range', 'flip_aug', 'color_aug', 'random_crop']
 
@@ -454,8 +469,56 @@ def add_extra_args(parser : argparse.ArgumentParser) -> List[str]:
   parser.add_argument('--resolution', type=int, default=512, help='Resolution for the project (default: 512)')
   # clip skip
   parser.add_argument('--clip_skip', type=int, default=2, help='Clip skip for the project (default: 2)')
+  # min snr gamma and min snr gamma value
+  parser.add_argument('--min_snr_gamma', type=bool, default=True, help='Min snr gamma for the project (default: True)')
+  # min snr gamma
+  parser.add_argument('--min_snr_gamma_value', type=float, default=5.0, help='Min snr gamma value for the project (default: 5.0)')
+  # zero_terminal_snr, it has to be string because bug
+  parser.add_argument('--zero_terminal_snr', type=str, default='False', help='Zero terminal snr for the project (default: False)')
+  # is_sd2
+  parser.add_argument('--v2', type=str, default=False, help='Is sd2 for the project (default: False)')
+  # v_parameterization
+  parser.add_argument('--v_parameterization', type=str, default=False, help='V parameterization for the project (default: False)')
+  return ['zero_terminal_snr', 'v2', 'v_parameterization']
+
+def add_optimizer_args(parser : argparse.ArgumentParser) -> List[str]:
+  """
+  Adds optimizer arguments to the parser.
+  """
+  # betas 0.9, 0.999
+  # eps 1e-8
+  # weight_decay 0.01
+  parser.add_argument('--adamw_betas', type=str, default='0.9,0.999',
+                      help='Betas for the optimizer (default: 0.9,0.999)')
+  parser.add_argument('--adamw_eps', type=float, default=1e-8,
+                      help='Epsilon for the optimizer (default: 1e-8)')
+  parser.add_argument('--adamw_weight_decay', type=float, default=0.01,
+                      help='Weight decay for the optimizer (default: 0.01)')
   return []
-  
+
+def fix_boolean_args(argument_dict : dict) -> dict:
+  """
+  Fixes boolean arguments in the argument dict.
+  """
+  for key, value in argument_dict.items():
+    if isinstance(value, str):
+      if value.lower() == 'true':
+        argument_dict[key] = True
+      elif value.lower() == 'false':
+        argument_dict[key] = False
+      elif value.lower() == 'none':
+        argument_dict[key] = None
+  return argument_dict
+
+def add_logging_args(parser: argparse.ArgumentParser) -> List[str]:
+  # log_with : 'wandb', 'tensorboard', 'all', 'none'
+  # wandb_api_key : str
+  parser.add_argument('--log_with', type=str, default='all', help='Log with for the project (default: None)')
+  parser.add_argument('--wandb_api_key', type=str, default='', help='Wandb api key for the project (default: "")')
+  #log_tracker_config : path to config file, default : None
+  parser.add_argument('--log_tracker_config', type=str, default='none', help='Log tracker config for the project (default: "none")')
+  return ['log_with', 'wandb_api_key', 'log_tracker_config']
+      
 if __name__ == "__main__":
   extra_args = []
   parser = argparse.ArgumentParser(description='LoRA Trainer')
@@ -467,6 +530,8 @@ if __name__ == "__main__":
   extra_args.extend(add_augmentation_args(parser)) # face_crop_aug_range, flip_aug, color_aug, random_crop
   extra_args.extend(add_gor_args(parser)) # group orthogonality regularization
   extra_args.extend(add_extra_args(parser)) # seed, keep_tokens, resolution, clip_skip 
+  extra_args.extend(add_optimizer_args(parser)) # betas, eps, weight_decay
+  extra_args.extend(add_logging_args(parser)) # log_with, wandb_api_key
   # keep tokens should be used only if first tags(comma separated) are properly tagged and set up in dataset.
 
   args = parser.parse_args()
@@ -474,7 +539,12 @@ if __name__ == "__main__":
   extra_args_dict = {
     k : getattr(args, k) for k in extra_args
   }
+  extra_args_dict = fix_boolean_args(extra_args_dict) # fix boolean arguments
+  
   print("Extra args dict : ", extra_args_dict)
+  
+  # random_crop should be parsed from extra_args_dict
+  random_crop = extra_args_dict['random_crop']
   
   try:
     down_lr_weight = literal_eval(args.down_lr_weight)
@@ -515,6 +585,21 @@ if __name__ == "__main__":
   suffix = args.custom_suffix
   max_grad_norm = args.max_grad_norm
   clip_skip = args.clip_skip
+  color_aug = args.color_aug
+  class_tokens = args.class_tokens
+  
+  xformers = args.xformers
+  precision_type = args.precision_type
+  
+  # parse optimizer args
+  betas = args.adamw_betas
+  # assert , in betas and length is 2 and both are float, such as 0.9,0.999
+  betas = [float(s) for s in betas.split(',')]
+  assert len(betas) == 2, "Betas must be length 2, but given "+str(len(betas))
+  assert isinstance(betas[0], float) and isinstance(betas[1], float), "Betas must be float, but given "+str(betas)
+  epsilon = args.adamw_eps
+  weight_decay = args.adamw_weight_decay
+  
   assert args.sample_opt in ['epoch', 'step', 'None'], "Sample option must be 'epoch' or 'step' or 'None', but given "+args.sample_opt
   assert args.sample_opt == 'None' or args.sample_num > 0, "Sample number must be positive, but given "+str(args.sample_num)
   assert sample_opt == 'None' or not prompt_path or os.path.exists(prompt_path), "Prompt file not found at "+prompt_path
@@ -551,7 +636,6 @@ if __name__ == "__main__":
   weighted_captions = True ## True로 하면 Weighted Caption 적용
   adjust_tags = True
   keep_tokens_weight = 1.0 
-  custom_model_is_based_on_sd2 = False #@param {type:"boolean"}
   resolution = args.resolution
   flip_aug = False #@param {type:"boolean"}
   caption_extension = ".txt" #param {type:"string"}
@@ -569,13 +653,13 @@ if __name__ == "__main__":
     keep_only_last_n_epochs = max_train_epochs
 
   lr_scheduler = args.lr_scheduler #@param ["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"]
-  lr_scheduler_number = 3 #@param {type:"number"}
+  lr_scheduler_number = args.lr_scheduler_number if lr_scheduler == "cosine_with_restarts" else 0
   lr_scheduler_num_cycles = lr_scheduler_number if lr_scheduler == "cosine_with_restarts" else 0
   lr_scheduler_power = lr_scheduler_number if lr_scheduler == "polynomial" else 0
-  lr_warmup_ratio = 0.05 #@param {type:"slider", min:0.0, max:0.5, step:0.01}
+  lr_warmup_ratio = args.lr_warmup_ratio
   lr_warmup_steps = 0
-  min_snr_gamma = True #@param {type:"boolean"}
-  min_snr_gamma_value = 5.0 if min_snr_gamma else None
+  min_snr_gamma = args.min_snr_gamma #@param {type:"boolean"}
+  min_snr_gamma_value = args.min_snr_gamma_value if min_snr_gamma else None
   lora_type = args.lora_type #@param ["LoRA", "LoCon Lycoris", "LoHa Lycoris"]
   conv_compression = False #@param {type:"boolean"}
   network_module = "lycoris.kohya" if "Lycoris" in lora_type else "networks.lora"
@@ -597,17 +681,20 @@ if __name__ == "__main__":
   if optimizer == "DAdaptation":
     print("Using DAdaptation optimizer, the following arguments will be ignored:")
     print("unet_lr, text_encoder_lr, optimizer_args, lr_scheduler")
-    optimizer_args = ["decouple=True","weight_decay=0.02","betas=[0.9,0.99]"]
+    optimizer_args = ["decouple=True",f"weight_decay={weight_decay}",f"betas=[{betas}]",f"eps={epsilon}"]
     unet_lr = 0.5
     text_encoder_lr = 0.5 * lbw_text_encoder_lr_mult
     if lr_scheduler != "constant_with_warmup":
       print(f"Using lr scheduler {lr_scheduler}, recommended for DAdaptation is constant_with_warmup")
     #network_alpha = network_dim
+  elif optimizer == "AdamW8bit":
+    optimizer_args = [f"betas={betas}", f"weight_decay={weight_decay}", f"eps={epsilon}"]
   
   main_dir      = root_dir
   log_folder    = os.path.join(main_dir, "_logs")
   config_folder = os.path.join(main_dir, project_name + suffix)
   output_folder = os.path.join(main_dir, project_name + suffix, "output")
+  sample_folder = os.path.join(main_dir, project_name + suffix, "output", "sample")
 
   config_file = os.path.join(config_folder, "training_config.toml")
   dataset_config_file = os.path.join(config_folder, "dataset_config.toml")
@@ -628,5 +715,14 @@ if __name__ == "__main__":
     shutil.copy(config_file, os.path.join(target_path, f"training_config_{suffix}.toml"))
     #shutil.copy(dataset_config_file, os.path.join(target_path, f"dataset_config_{suffix}.toml"))
     #shutil.copy(accelerate_config_file, os.path.join(target_path, f"accelerate_config_{suffix}.yaml"))
+  result_samples = process_path(sample_folder)
+  # move processed samples to target_path
+  if not os.path.exists(os.path.join(target_path, "grid_samples")):
+    os.makedirs(os.path.join(target_path, "grid_samples"))
+  for grid_path in result_samples:
+    prefix = f's{suffix}_'
+    # move to target_path/samples/prefix+basename(grid_path)
+    shutil.move(grid_path, os.path.join(target_path, "grid_samples", project_name + prefix + os.path.basename(grid_path)))
+  
 
   print("Done!")

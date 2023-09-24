@@ -18,6 +18,7 @@ from library.common_gui import (
     SaveConfigFile,
     save_to_file,
     check_duplicate_filenames,
+    setup_common_textbox
 )
 from library.class_configuration_file import ConfigurationFile
 from library.class_source_model import SourceModel
@@ -25,7 +26,7 @@ from library.class_basic_training import BasicTraining
 from library.class_advanced_training import AdvancedTraining
 from library.class_sdxl_parameters import SDXLParameters
 from library.class_folders import Folders
-from library.class_command_executor import CommandExecutor
+from library.class_command_executor_multi import MultiCommandExecutor
 from library.tensorboard_gui import (
     gradio_tensorboard,
     start_tensorboard,
@@ -43,11 +44,13 @@ from library.dataset_balancing_gui import gradio_dataset_balancing_tab
 from library.custom_logging import setup_logging
 from localization_ext import add_javascript
 
+from library.port_util import get_available_port
+
 # Set up logging
 log = setup_logging()
 
 # Setup command executor
-executor = CommandExecutor()
+executor = MultiCommandExecutor()
 
 button_run = gr.Button('Start training', variant='primary')
 
@@ -496,7 +499,9 @@ def train_model(
     full_bf16,
     min_timestep,
     max_timestep,
-):
+    cuda_device = '',
+    run_as_subprocess = False
+) -> str:
     # Get list of function parameters and values
     parameters = list(locals().items())
     global command_running
@@ -509,13 +514,13 @@ def train_model(
         output_message(
             msg='Source model information is missing', headless=headless_bool
         )
-        return
+        return "Source model information is missing"
 
     if train_data_dir == '':
         output_message(
             msg='Image folder path is missing', headless=headless_bool
         )
-        return
+        return "Image folder path is missing"
 
     # Check if there are files with the same filename but different image extension... warn the user if it is the case.
     check_duplicate_filenames(train_data_dir)
@@ -524,34 +529,34 @@ def train_model(
         output_message(
             msg='Image folder does not exist', headless=headless_bool
         )
-        return
+        return "Image folder does not exist"
 
     if not verify_image_folder_pattern(train_data_dir):
-        return
+        return "Image folder does not contain images with the correct pattern"
 
     if reg_data_dir != '':
         if not os.path.exists(reg_data_dir):
             output_message(
-                msg='Regularisation folder does not exist',
+                msg='Regularization folder does not exist',
                 headless=headless_bool,
             )
-            return
+            return "Regularization folder does not exist"
 
         if not verify_image_folder_pattern(reg_data_dir):
-            return
+            return "Regularization folder does not contain images with the correct pattern"
 
     if output_dir == '':
         output_message(
             msg='Output folder path is missing', headless=headless_bool
         )
-        return
+        return "Output folder path is missing"
 
     if int(bucket_reso_steps) < 1:
         output_message(
             msg='Bucket resolution steps need to be greater than 0',
             headless=headless_bool,
         )
-        return
+        return "Bucket resolution steps need to be greater than 0"
 
     if noise_offset == '':
         noise_offset = 0
@@ -561,7 +566,7 @@ def train_model(
             msg='Noise offset need to be a value between 0 and 1',
             headless=headless_bool,
         )
-        return
+        return "Noise offset need to be a value between 0 and 1"
 
     # if float(noise_offset) > 0 and (
     #     multires_noise_iterations > 0 or multires_noise_discount > 0
@@ -586,7 +591,7 @@ def train_model(
     if check_if_model_exist(
         output_name, output_dir, save_model_as, headless=headless_bool
     ):
-        return
+        return "Model already exists"
 
     # if optimizer == 'Adafactor' and lr_warmup != '0':
     #     output_message(
@@ -687,12 +692,20 @@ def train_model(
 
     lr_warmup_steps = round(float(int(lr_warmup) * int(max_train_steps) / 100))
     log.info(f'lr_warmup_steps = {lr_warmup_steps}')
+    
+    starting_port = 10000
+    max_search_retries = 100
+    
+    available_port = get_available_port(starting_port, max_search_retries)
 
-    run_cmd = f'accelerate launch --num_cpu_threads_per_process={num_cpu_threads_per_process}'
+    run_cmd = f'accelerate launch --num_cpu_threads_per_process={num_cpu_threads_per_process}' + ' --main_process_port=' + str(available_port)
+    if cuda_device != '':
+        run_cmd += f' --gpu_ids={cuda_device}'
     if sdxl:
         run_cmd += f' "./sdxl_train_network.py"'
     else:
         run_cmd += f' "./train_network.py"'
+    
 
     if v2:
         run_cmd += ' --v2'
@@ -733,7 +746,7 @@ def train_model(
             log.info(
                 "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
             )
-            return
+            return "Error: lycoris_lora not installed but Locon selected"
         run_cmd += f' --network_module=lycoris.kohya'
         run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "algo=lora"'
 
@@ -744,7 +757,7 @@ def train_model(
             log.info(
                 "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
             )
-            return
+            return "Error: lycoris_lora not installed but LoHa selected"
         run_cmd += f' --network_module=lycoris.kohya'
         run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "use_cp={use_cp}" "algo=loha"'
         # This is a hack to fix a train_network LoHA logic issue
@@ -758,7 +771,7 @@ def train_model(
             log.info(
                 "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
             )
-            return
+            return "Error: lycoris_lora not installed but iA3 selected"
         run_cmd += f' --network_module=lycoris.kohya'
         run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "train_on_input={train_on_input}" "algo=ia3"'
         # This is a hack to fix a train_network LoHA logic issue
@@ -772,7 +785,7 @@ def train_model(
             log.info(
                 "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
             )
-            return
+            return "Error: lycoris_lora not installed but DyLoRA selected"
         run_cmd += f' --network_module=lycoris.kohya'
         run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "use_cp={use_cp}" "block_size={unit}" "algo=dylora"'
         # This is a hack to fix a train_network LoHA logic issue
@@ -786,7 +799,7 @@ def train_model(
             log.info(
                 "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
             )
-            return
+            return "Error: lycoris_lora not installed but LoKr selected"
         run_cmd += f' --network_module=lycoris.kohya'
         run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "factor={factor}" "use_cp={use_cp}" "algo=lokr"'
         # This is a hack to fix a train_network LoHA logic issue
@@ -908,7 +921,7 @@ def train_model(
                 msg='Please input learning rate values.',
                 headless=headless_bool,
             )
-            return
+            return "Please input learning rate values."
 
     run_cmd += f' --network_dim={network_dim}'
 
@@ -1018,6 +1031,7 @@ def train_model(
         print(run_cmd)
 
         save_to_file(run_cmd)
+        return run_cmd
     else:
         # Saving config file for model
         current_datetime = datetime.now()
@@ -1036,7 +1050,12 @@ def train_model(
 
         log.info(run_cmd)
         # Run the command
-        executor.execute_command(run_cmd=run_cmd)
+        if not run_as_subprocess:
+            executor.execute_command(run_cmd=run_cmd, port=available_port) # MultiCommandExecutor supports port argument
+        else:
+            log.info("WARN : Running as subprocess, stop button will kill all training processes")
+            # TODO: support single process kill, we can do it with inputting port
+            executor.execute_command_subprocess(run_cmd=run_cmd, port=available_port)
 
         # # check if output_dir/last is a folder... therefore it is a diffuser model
         # last_dir = pathlib.Path(f'{output_dir}/{output_name}')
@@ -1046,6 +1065,8 @@ def train_model(
         #     save_inference_file(
         #         output_dir, v2, v_parameterization, output_name
         #     )
+        
+        return "running training \n" + run_cmd
 
 
 def lora_tab(
@@ -1522,20 +1543,55 @@ def lora_tab(
                 headless=headless,
             )
             gradio_dataset_balancing_tab(headless=headless)
+            
+        with gr.Row():
+            cuda_devices_txt = gr.Textbox(
+                label='CUDA devices',
+                placeholder='(Optional) eg: 0,1,2,3',
+                info='Specify the CUDA devices to use. If omitted, all devices are used.',
+            )
 
         with gr.Row():
+            checkbox_run_as_subprocess = gr.Checkbox(
+                label='Run as subprocess',
+                value=False,
+                info='Run the training as a subprocess in the background. You may not be able to stop the training.',
+            )
             button_run = gr.Button('Start training', variant='primary')
+            
+            dropdown_ports = gr.Dropdown(
+                label='Ports to kill',
+                choices=[-1],
+                value="-1",
+                elem_id='ports_dynamic',
+            )
+            # refresh emoji
+            refresh_dropdown_port_button = gr.Button(
+                value='🔄',
+                elem_id='refresh_ports'
+            )
 
             button_stop_training = gr.Button('Stop training')
 
         button_print = gr.Button('Print training command')
+        
+        text_log_output_box = setup_common_textbox() # from common_gui
+        
 
         # Setup gradio tensorboard buttons
         (
             button_start_tensorboard,
             button_stop_tensorboard,
         ) = gradio_tensorboard()
-
+            
+        refresh_dropdown_port_button.click(
+            fn =lambda : gr.Dropdown.update(
+                choices=["-1"] + [str(x) for x in executor.get_running_process_ports()]
+            ),
+            outputs=[dropdown_ports],
+            show_progress=False,
+        )
+        
         button_start_tensorboard.click(
             start_tensorboard,
             inputs=folders.logging_dir,
@@ -1709,16 +1765,18 @@ def lora_tab(
 
         button_run.click(
             train_model,
-            inputs=[dummy_headless] + [dummy_db_false] + settings_list,
+            inputs=[dummy_headless] + [dummy_db_false] + settings_list + [cuda_devices_txt, checkbox_run_as_subprocess],
             show_progress=False,
+            outputs=text_log_output_box,
         )
 
-        button_stop_training.click(executor.kill_command)
+        button_stop_training.click(executor.kill_command, inputs=[dropdown_ports])
 
         button_print.click(
             train_model,
-            inputs=[dummy_headless] + [dummy_db_true] + settings_list,
+            inputs=[dummy_headless] + [dummy_db_true] + settings_list + [cuda_devices_txt],
             show_progress=False,
+            outputs=text_log_output_box,
         )
 
     with gr.Tab('Tools'):

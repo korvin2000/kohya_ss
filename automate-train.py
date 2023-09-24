@@ -3,9 +3,8 @@ import subprocess
 from itertools import product
 import argparse
 import json
-
-tuning_config = {
-}
+import random
+import tempfile
 
 def update_config(tuning_config_path : str) -> None:
     """
@@ -16,13 +15,47 @@ def update_config(tuning_config_path : str) -> None:
         "PORT" : "port"
     }
     with open(tuning_config_path, 'r') as f:
-        tuning_config = json.load(f)
+        tuning_config_new = json.load(f)
     for keys in keys_to_replace:
-        if keys in tuning_config:
-            tuning_config[keys_to_replace[keys]] = tuning_config[keys]
-            del tuning_config[keys]
+        if keys in tuning_config_new:
+            tuning_config_new[keys_to_replace[keys]] = tuning_config_new[keys]
+            del tuning_config_new[keys]
     with open(tuning_config_path, 'w') as f:
-        json.dump(tuning_config, f, indent=4)
+        json.dump(tuning_config_new, f, indent=4)
+
+def create_log_tracker_config(template_path_to_read:str, project_name, dict_args:dict, force_generate:bool=True, args_to_remove:list = []):
+    """
+    Creates log tracker config from template. Stringifies the setups, and adds random 6 length alphanumeric string to the end of the project name.
+    """
+    if not force_generate and template_path_to_read == 'none':
+        return None
+    # read template, if not exist, but force_generate is true, create new template
+    if not os.path.exists(template_path_to_read):
+        if force_generate:
+            template = r'''[[[wandb]]]
+            name = "{0}"
+            '''
+        else:
+            raise OSError("Template path does not exist : "+template_path_to_read)
+    else:
+        with open(template_path_to_read, 'r') as f:
+            template = f.read()
+    merged_string = f"{project_name}_"+"_".join([f"{key}={value}" for key, value in dict_args.items() if key not in args_to_remove]) + "_" + generate_random_string()
+    new_template = template.format(
+        merged_string
+    )
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_toml_file:
+        temp_toml_file.write(new_template)
+    return temp_toml_file.name
+    
+    
+def generate_random_string(length:int=6) -> str:
+    """
+    Generates random string of length 6
+    """
+    # pick 10 + 26 = 36 characters
+    characters_to_use = '0123456789abcdefghijklmnopqrstuvwxyz'
+    return ''.join(random.choice(characters_to_use) for _ in range(length))
 
 
 def generate_config(**modified_kwargs) -> dict:
@@ -77,13 +110,26 @@ def load_default_config(config_path:str):
         'up_lr_weight' : '[1,1,1,1,1,1,1,1,1,1,1,1]',
         'down_lr_weight' : '[1,1,1,1,1,1,1,1,1,1,1,1]',
         'mid_lr_weight' : 1,
-        'lbw_weights' : '' # [1,]*17 or [1]* 16, modify this if you want
+        'lbw_weights' : '', # [1,]*17 or [1]* 16, modify this if you want
+        'adamw_weight_decay' : 0.01, #default 0.01
+        'log_with' : None,
+        'wandb_api_key' : '',
     }
     try:
         with open(config_path, 'r') as f:
             default_configs_loaded = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        print("Couldn't load config file at {}, using default configs".format(config_path))
+    except (FileNotFoundError):
+        print(f"Couldn't load config file at {config_path}")
+        if config_path != '':
+            raise FileNotFoundError(f"Couldn't load config file at {config_path}")
+        else:
+            default_configs_loaded = {}
+    except json.JSONDecodeError as e:
+        print(f"Malformed json file at {config_path}")
+        if config_path != '':
+            raise json.JSONDecodeError(f"Malformed json file at {config_path}", e.doc, e.pos)
+        else:
+            default_configs_loaded = {}
     for keys in default_configs:
         if keys not in default_configs_loaded:
             default_configs_loaded[keys] = default_configs[keys]
@@ -141,8 +187,18 @@ def load_tuning_config(config_path:str):
     try:
         with open(config_path, 'r') as f:
             tuning_config_loaded = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        print("Couldn't load config file, using default configs")
+    except FileNotFoundError:
+        print("Couldn't load config file")
+        if config_path != '':
+            raise FileNotFoundError(f"Couldn't load config file at {config_path}")
+        else:
+            tuning_config_loaded = {}
+    except json.JSONDecodeError as decodeException:
+        print("Malformed json file")
+        if config_path != '':
+            raise json.JSONDecodeError(f"Malformed json file at {config_path}", decodeException.doc, decodeException.pos)
+        else:
+            tuning_config_loaded = {}
     for keys in tuning_config:
         if keys not in tuning_config_loaded:
             # check if list exists instead, then skip
@@ -196,7 +252,7 @@ if __name__ == '__main__':
             venv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv') # expected venv path
             os.chdir(os.path.dirname(os.path.abspath(__file__)))
             if not os.path.exists(venv_path):
-                raise ValueError("venv not found at {}".format(venv_path))
+                raise ValueError(f"venv not found at {venv_path}")
             # os-specific venv activation, windows -> Scripts, posix -> bin
             if os.name == 'nt': # windows
                 execute_path = os.path.join(venv_path, 'Scripts', 'python.exe')
@@ -213,31 +269,57 @@ if __name__ == '__main__':
     if tuning_config['custom_dataset'] is not None:
         ignored_options_name = ['images_folder', 'num_repeats','shuffle_caption', 'keep_tokens', 'resolution']
         print(f"custom_dataset is not None, dataset options {ignored_options_name} will be ignored")
-
+        
+    # if log_tracker_config_template is not none, create log tracker config and remove the key
+    template_path = None
+    if tuning_config['log_tracker_config_template'] != 'none':
+        template_path = tuning_config['log_tracker_config_template']
+        del tuning_config['log_tracker_config_template']
+                
     list_arguments_name = {}
     for arguments, values in tuning_config.items():
         if arguments.endswith('_list'):
             list_arguments_name[arguments.replace('_list', '')] = values
+            
+    singleton_args = []
+    for args in list_arguments_name:
+        if len(list_arguments_name[args]) == 1:
+            print(f"argument {args} is singleton, will be removed from log_tracker_config")
+            singleton_args.append(args)
     if "PORT" in tuning_config:
         tuning_config['port'] = tuning_config['PORT']
         del tuning_config['PORT']
+    if tuning_config.get('project_name_base', 'BASE') != 'BASE':
+        project_name_base = tuning_config['project_name_base']
     keys_to_remove = {'CUDA_VISIBLE_DEVICES', 'PORT'}
-    for args in product(*list_arguments_name.values()):
-        list_arguments = dict(zip(list_arguments_name.keys(), args))
+    for args_prod in product(*list_arguments_name.values()):
+        list_arguments = dict(zip(list_arguments_name.keys(), args_prod))
+        if template_path is not None:
+            log_tracker_config_path = create_log_tracker_config(template_path, project_name_base, list_arguments, True, args_to_remove=singleton_args)
+            list_arguments['log_tracker_config'] = log_tracker_config_path
         temp_tuning_config = generate_tuning_config(tuning_config, **list_arguments)
         # check validity
-        if temp_tuning_config['network_alpha'] > temp_tuning_config['network_dim']:
-            continue
-        if temp_tuning_config['unet_lr'] < temp_tuning_config['text_encoder_lr']:
+        if temp_tuning_config.get('network_alpha', 8) > temp_tuning_config.get('network_dim', 16):
             continue
         if temp_tuning_config.get('conv_alpha', 1) > temp_tuning_config.get('conv_dim', 8):
+            continue
+        if temp_tuning_config.get('unet_lr', 1e-4) < temp_tuning_config.get('text_encoder_lr', 2e-5):
             continue
         # this arguments will be used for overriding default configs
     
         config = generate_config(**temp_tuning_config,
                                 )
         # override args
-        config['project_name_base'] = project_name_base
+        config['project_name_base'] = project_name_base if project_name_base != "BASE" else config['project_name_base']
+        # check if project_name_base is valid, since it will be used for folder name
+        project_name_to_check = config['project_name_base']
+        if project_name_to_check == '':
+            raise ValueError("project_name_base cannot be empty")
+        # check invalid characters, {, }, [, ], /, \, :, *, ?, ", <, >, |, .
+        invalid_characters = ['{', '}', '[', ']', '/', '\\', ':', '*', '?', '"', '<', '>', '|', '.']
+        for characters in invalid_characters:
+            if characters in project_name_to_check:
+                raise ValueError(f"project_name_base cannot contain {characters}")
         if model_name:
             config['model_file'] = model_name
         if images_folder:
@@ -253,10 +335,12 @@ if __name__ == '__main__':
                 continue
             command_inputs.append(f"--{arguments}")
             command_inputs.append(str(values))
-        command_inputs.append(f"--custom_suffix")
+        command_inputs.append("--custom_suffix")
         command_inputs.append(str(train_id))
         if debug:
             print(' '.join(command_inputs) + '\n')
         else:
             subprocess.check_call(command_inputs)
         train_id += 1
+        last_tmp_dir = config['temp_dir']
+    subprocess.check_call([execute_path, "merge_csv.py", "--path", last_tmp_dir, "--output", f"result_{project_name_base}.csv"])

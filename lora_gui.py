@@ -46,6 +46,8 @@ from localization_ext import add_javascript
 
 from library.port_util import get_available_port
 
+from library.port_util import get_available_port
+
 # Set up logging
 log = setup_logging()
 

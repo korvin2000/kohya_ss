@@ -24,7 +24,16 @@ RE_UPDOWN = re.compile(r"(up|down)_blocks_(\d+)_(resnets|upsamplers|downsamplers
 #          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2",
 #          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2", ]
 BLOCKS = ["text_model",
-          "unet", ]
+          "unet_down_blocks_0_attentions_0","unet_down_blocks_0_attentions_1","unet_down_blocks_0_resnets",
+          "unet_down_blocks_1_attentions_0","unet_down_blocks_1_attentions_1","unet_down_blocks_1_resnets",
+          "unet_down_blocks_2_attentions_0","unet_down_blocks_2_attentions_1","unet_down_blocks_2_resnets",
+          "unet_down_blocks_3",
+          "unet_mid_block_attentions_0", "unet_mid_block_resnets",
+          "unet_up_blocks_0_resnets",
+          "unet_up_blocks_1_attentions_0","unet_up_blocks_1_attentions_1","unet_up_blocks_1_attentions_2","unet_up_blocks_1_resnets",
+          "unet_up_blocks_2_attentions_0","unet_up_blocks_2_attentions_1","unet_up_blocks_2_attentions_2","unet_up_blocks_2_resnets",
+          "unet_up_blocks_3_attentions_0","unet_up_blocks_3_attentions_1","unet_up_blocks_3_attentions_2","unet_up_blocks_3_resnets",]
+
 
 #-------------------------------------------#
 # block index                               #
@@ -890,8 +899,6 @@ class LoRANetwork(torch.nn.Module):
                             else :
                                 for i, block in enumerate(BLOCKS) :
                                     if block in lora_name and block_wise[i] == 1:
-                                        if 'res' in lora_name:
-                                            print(f'block_wise lora: {lora_name}')
                                         lora = module_class(lora_name,
                                                             child_module,
                                                             self.multiplier,

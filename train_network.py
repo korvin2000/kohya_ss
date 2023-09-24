@@ -839,6 +839,22 @@ class NetworkTrainer:
                     for (layer_name, param), param_dict in zip(network.named_parameters(), optimizer.param_groups):
                         if args.algorithm_test :
                             for key in standard_dict.keys() :
+                                spot_name = key.split('lora_unet_mid_block_attentions_0_')[-1]
+                                file_name = os.path.join(f'layerwise_collections',f'{spot_name}.txt')
+                                with open(file_name,'r') as f :
+                                    content = f.readlines()
+                                for line in content :
+                                    scaling_layer_name =  line.split(' : ')[0]
+                                    if layer_name == scaling_layer_name :
+                                        scale_factor = line.split(' : ')[-1]
+                                        scaling_factor = float(scale_factor.strip())
+                                        gradient = param_dict['params'][0].data
+                                        original_norm = param_dict['params'][0].data.norm(2)
+                                        optimal_norm = standard_dict[key] * scaling_factor
+                                        if optimal_norm > 0 :
+                                            param_dict['params'][0].data = param_dict['params'][0].data * (optimal_norm/original_norm)
+
+                                """
                                 if key in layer_name :
                                     block_name = layer_name.split(key)[0]
                                     if 'down_blocks_0' in layer_name:
@@ -890,6 +906,7 @@ class NetworkTrainer:
                                         else:
                                             scaling_factor = 1
                                         param_dict['params'][0].data = param_dict['params'][0].data * scaling_factor
+                                """
                         if is_main_process:
                             wandb_logs[layer_name] = param_dict['params'][0].grad.data.norm(2)
                             try:

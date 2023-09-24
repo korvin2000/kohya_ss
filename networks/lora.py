@@ -836,6 +836,10 @@ class LoRANetwork(torch.nn.Module):
                             is_conv2d = child_module.__class__.__name__ == "Conv2d"
                             is_conv2d_1x1 = is_conv2d and child_module.kernel_size == (1, 1)
                             print(f'child_name : {child_module.__class__.__name__}')
+                            if is_linear or is_conv2d:
+                                lora_name = prefix + "." + name + "." + child_name
+                                lora_name = lora_name.replace(".", "_")
+                                print(f'lora_name : {lora_name}')
 
                     for child_name, child_module in module.named_modules():
                         is_linear = child_module.__class__.__name__ == "Linear"
@@ -844,7 +848,6 @@ class LoRANetwork(torch.nn.Module):
                         if is_linear or is_conv2d:
                             lora_name = prefix + "." + name + "." + child_name
                             lora_name = lora_name.replace(".", "_")
-
                             dim = None
                             alpha = None
 
